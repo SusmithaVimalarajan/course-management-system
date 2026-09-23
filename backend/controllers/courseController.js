@@ -1,5 +1,6 @@
 const Course = require("../models/courseModel");
 const User = require("../models/userModel");
+const validateCourse = require("../helpers/validateCourse");
 
 // Get all courses
 const getAllCourses = async (req, res) => {
@@ -52,42 +53,35 @@ const getCourseById = async (req, res) => {
 // Create course
 const createCourse = async (req, res) => {
   try {
-    const {
-      title,
-      category,
-      level,
-      duration,
-      price,
-      image,
-      description,
-    } = req.body;
+    const course = req.validatedCourse;
 
-    // Basic validation
-    if (!title || !category || !level) {
-      return res.status(400).json({
-        message: "Title, category and level are required",
+    // Check duplicate title
+    const existingCourse = await Course.findByTitle(
+      course.title
+    );
+
+    if (existingCourse) {
+      return res.status(409).json({
+        message: "Course title already exists.",
+        errors: {
+          title: "A course with this title already exists.",
+        },
       });
     }
 
-    const courseId = await Course.create({
-      title,
-      category,
-      level,
-      duration,
-      price,
-      image,
-      description,
-    });
+    const courseId = await Course.create(course);
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Course created successfully",
       courseId,
     });
-
   } catch (error) {
-    console.error("Error creating course:", error.message);
+    console.error(
+      "Error creating course:",
+      error.message
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Internal server error",
     });
   }
@@ -99,17 +93,9 @@ const updateCourse = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const {
-      title,
-      category,
-      level,
-      duration,
-      price,
-      image,
-      description,
-    } = req.body;
+    const course = req.validatedCourse;
 
-    // Check if course exists
+    // Check whether course exists
     const existingCourse = await Course.getById(id);
 
     if (!existingCourse) {
@@ -118,28 +104,40 @@ const updateCourse = async (req, res) => {
       });
     }
 
-    await Course.update(id, {
-      title,
-      category,
-      level,
-      duration,
-      price,
-      image,
-      description,
-    });
+    // Check duplicate title
+    // Exclude current course ID
+    const duplicateCourse =
+      await Course.findByTitle(
+        course.title,
+        id
+      );
 
-    // Get updated course
-    const updatedCourse = await Course.getById(id);
+    if (duplicateCourse) {
+      return res.status(409).json({
+        message: "Course title already exists.",
+        errors: {
+          title:
+            "A course with this title already exists.",
+        },
+      });
+    }
 
-    res.status(200).json({
+    await Course.update(id, course);
+
+    const updatedCourse =
+      await Course.getById(id);
+
+    return res.status(200).json({
       message: "Course updated successfully",
       course: updatedCourse,
     });
-
   } catch (error) {
-    console.error("Error updating course:", error.message);
+    console.error(
+      "Error updating course:",
+      error.message
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Internal server error",
     });
   }

@@ -43,12 +43,18 @@ function ManageCourses() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Form visibility + which course is being edited (null = adding new)
+  // Form visibility + which course is being edited
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState(EMPTY_COURSE);
+
+  // General form error
   const [formError, setFormError] = useState("");
+
+  // Field-level server validation errors
+  const [fieldErrors, setFieldErrors] = useState({});
+
   const [saving, setSaving] = useState(false);
 
 
@@ -80,7 +86,7 @@ function ManageCourses() {
   }, []);
 
 
-  // ---------- Reload the list after a create / update / delete ----------
+  // ---------- Reload the list after create / update / delete ----------
   const refreshCourses = async () => {
     setCourses(await fetchAllCourses());
   };
@@ -96,24 +102,44 @@ function ManageCourses() {
       ...formData,
       [name]: value,
     });
+
+    // Remove the server error for the field
+    // when the user starts correcting it.
+    setFieldErrors((previous) => ({
+      ...previous,
+      [name]: "",
+    }));
+
+    setFormError("");
   };
 
 
+  // ---------- Open Add Form ----------
+
   const openAddForm = () => {
+
     setShowForm(true);
     setEditingId(null);
-    setFormData(EMPTY_COURSE);
+
+    setFormData({
+      ...EMPTY_COURSE,
+    });
+
     setFormError("");
+    setFieldErrors({});
     setError("");
     setSuccess("");
   };
 
 
+  // ---------- Open Edit Form ----------
+
   const openEditForm = (course) => {
+
     setShowForm(true);
     setEditingId(course.id);
 
-    // Fill the form with the existing course values.
+    // Fill the form with existing course values.
     setFormData({
       title: course.title || "",
       category: course.category || "",
@@ -125,127 +151,207 @@ function ManageCourses() {
     });
 
     setFormError("");
+    setFieldErrors({});
     setError("");
     setSuccess("");
   };
 
 
+  // ---------- Close Form ----------
+
   const closeForm = () => {
+
     setShowForm(false);
     setEditingId(null);
-    setFormData(EMPTY_COURSE);
+
+    setFormData({
+      ...EMPTY_COURSE,
+    });
+
     setFormError("");
+    setFieldErrors({});
   };
 
 
   // ---------- Create / Update ----------
+
   const handleSubmit = async (event) => {
 
-    // Stop the browser from reloading the page
+    // Stop browser from reloading the page.
     event.preventDefault();
 
     setFormError("");
     setError("");
     setSuccess("");
+    setFieldErrors({});
 
 
-    // ---------- Client side validation ----------
+    // ---------- Client-side validation ----------
+    // This is only an additional user-friendly check.
+    // Backend validation remains the final protection.
+
     if (
       !formData.title.trim() ||
       !formData.category.trim() ||
       !formData.level
     ) {
-      setFormError("Title, category and level are required.");
+
+      setFormError(
+        "Title, category and level are required."
+      );
+
       return;
     }
+
 
     if (!formData.duration.trim()) {
-      setFormError("Duration is required (for example: 8 Weeks).");
+
+      setFormError(
+        "Duration is required (for example: 8 Weeks)."
+      );
+
       return;
     }
 
-    if (formData.price === "" || Number(formData.price) < 0) {
-      setFormError("Please enter a valid price.");
+
+    if (
+      formData.price === "" ||
+      Number(formData.price) < 0
+    ) {
+
+      setFormError(
+        "Please enter a valid price."
+      );
+
       return;
     }
 
 
-    // The backend expects price to be a number
+    // The backend expects price to be a number.
     const coursePayload = {
+
       title: formData.title.trim(),
+
       category: formData.category.trim(),
+
       level: formData.level,
+
       duration: formData.duration.trim(),
+
       price: Number(formData.price),
+
       image: formData.image.trim(),
+
       description: formData.description.trim(),
     };
 
 
     setSaving(true);
 
+
     try {
 
       if (editingId) {
 
-        // ---------- Update an existing course ----------
+        // ---------- Update existing course ----------
+
         const response = await api.put(
           `/courses/${editingId}`,
           coursePayload
         );
 
-        setSuccess(response.data.message);
+        setSuccess(
+          response.data.message
+        );
 
       } else {
 
-        // ---------- Create a new course ----------
-        const response = await api.post("/courses", coursePayload);
+        // ---------- Create new course ----------
 
-        setSuccess(response.data.message);
+        const response = await api.post(
+          "/courses",
+          coursePayload
+        );
 
+        setSuccess(
+          response.data.message
+        );
       }
 
+
+      // Close form after successful save.
       closeForm();
 
-      // Show fresh data from the backend
+      // Show fresh data from backend.
       await refreshCourses();
 
     } catch (error) {
 
-      // 400 = the backend rejected the data
+      // ---------- SERVER-SIDE VALIDATION ERROR ----------
+
+      const responseData =
+        error.response?.data;
+
+
+      // Backend field-level errors.
+      //
+      // Example:
+      // {
+      //   errors: {
+      //     title: "Course title already exists.",
+      //     price: "Price must be greater than or equal to 0."
+      //   }
+      // }
+
+      if (responseData?.errors) {
+
+        setFieldErrors(
+          responseData.errors
+        );
+      }
+
+
+      // General backend error message.
       setFormError(
-        error.response?.data?.message ||
+        responseData?.message ||
         "Could not save the course. Please try again."
       );
 
     } finally {
 
       setSaving(false);
-
     }
   };
 
 
   // ---------- Delete ----------
+
   const handleDelete = async (course) => {
 
-    // Always confirm before a destructive action
+    // Always confirm before destructive action.
     const confirmed = window.confirm(
       `Delete "${course.title}"? This cannot be undone.`
     );
+
 
     if (!confirmed) {
       return;
     }
 
+
     setError("");
     setSuccess("");
 
+
     try {
 
-      const response = await api.delete(`/courses/${course.id}`);
+      const response = await api.delete(
+        `/courses/${course.id}`
+      );
 
-      setSuccess(response.data.message);
+      setSuccess(
+        response.data.message
+      );
 
       await refreshCourses();
 
@@ -255,138 +361,274 @@ function ManageCourses() {
         error.response?.data?.message ||
         "Could not delete the course."
       );
-
     }
   };
-
 
 
   return (
 
     <>
+
       <Navbar />
 
+
       <div className="container">
+
+
+        {/* ---------- Page Header ---------- */}
 
         <div className="page-header">
 
           <div>
-            <h1>Manage Courses</h1>
+
+            <h1>
+              Manage Courses
+            </h1>
 
             <p className="page-subtitle">
-              Add new courses, update the existing ones, or remove courses
-              that are no longer offered.
+              Add new courses, update the existing ones,
+              or remove courses that are no longer offered.
             </p>
+
           </div>
+
 
           <button
             type="button"
             className="btn btn-primary"
-            onClick={showForm ? closeForm : openAddForm}
+            onClick={
+              showForm
+                ? closeForm
+                : openAddForm
+            }
           >
-            {showForm ? <FaTimes /> : <FaPlus />}
-            {showForm ? "Cancel" : "Add Course"}
+
+            {showForm
+              ? <FaTimes />
+              : <FaPlus />
+            }
+
+            {showForm
+              ? "Cancel"
+              : "Add Course"
+            }
+
           </button>
 
         </div>
 
 
-        {/* ---------- Success / error messages ---------- */}
+        {/* ---------- Success / General Error Messages ---------- */}
 
-        {success && <p className="success">{success}</p>}
+        {success && (
+          <p className="success">
+            {success}
+          </p>
+        )}
 
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error">
+            {error}
+          </p>
+        )}
 
 
-        {/* ---------- Add / Edit form ---------- */}
+        {/* ---------- Add / Edit Form ---------- */}
 
         {showForm && (
 
           <section className="section-card">
 
+
             <div className="section-card-header">
-              <h2>{editingId ? "Edit Course" : "New Course"}</h2>
+
+              <h2>
+                {editingId
+                  ? "Edit Course"
+                  : "New Course"
+                }
+              </h2>
+
             </div>
 
 
-            <form className="form" onSubmit={handleSubmit}>
+            <form
+              className="form"
+              onSubmit={handleSubmit}
+            >
+
+
+              {/* ---------- Title + Category ---------- */}
 
               <div className="form-row">
 
+
                 <div className="form-group">
-                  <label htmlFor="title">Title *</label>
+
+                  <label htmlFor="title">
+                    Title *
+                  </label>
+
 
                   <input
                     id="title"
-                    className="input"
+                    className={
+                      fieldErrors.title
+                        ? "input input-error"
+                        : "input"
+                    }
                     type="text"
                     name="title"
                     value={formData.title}
                     onChange={handleChange}
                     placeholder="e.g. React"
                   />
+
+
+                  {fieldErrors.title && (
+
+                    <p className="field-error">
+                      {fieldErrors.title}
+                    </p>
+
+                  )}
+
                 </div>
 
 
                 <div className="form-group">
-                  <label htmlFor="category">Category *</label>
+
+                  <label htmlFor="category">
+                    Category *
+                  </label>
+
 
                   <input
                     id="category"
-                    className="input"
+                    className={
+                      fieldErrors.category
+                        ? "input input-error"
+                        : "input"
+                    }
                     type="text"
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
                     placeholder="e.g. Frontend"
                   />
+
+
+                  {fieldErrors.category && (
+
+                    <p className="field-error">
+                      {fieldErrors.category}
+                    </p>
+
+                  )}
+
                 </div>
 
               </div>
 
 
+              {/* ---------- Level + Duration + Price ---------- */}
+
               <div className="form-row">
 
+
                 <div className="form-group">
-                  <label htmlFor="level">Level *</label>
+
+                  <label htmlFor="level">
+                    Level *
+                  </label>
+
 
                   <select
                     id="level"
-                    className="input"
+                    className={
+                      fieldErrors.level
+                        ? "input input-error"
+                        : "input"
+                    }
                     name="level"
                     value={formData.level}
                     onChange={handleChange}
                   >
-                    {LEVEL_OPTIONS.map((level) => (
-                      <option key={level} value={level}>
-                        {level}
-                      </option>
-                    ))}
+
+                    {LEVEL_OPTIONS.map(
+                      (level) => (
+
+                        <option
+                          key={level}
+                          value={level}
+                        >
+                          {level}
+                        </option>
+
+                      )
+                    )}
+
                   </select>
+
+
+                  {fieldErrors.level && (
+
+                    <p className="field-error">
+                      {fieldErrors.level}
+                    </p>
+
+                  )}
+
                 </div>
 
 
                 <div className="form-group">
-                  <label htmlFor="duration">Duration *</label>
+
+                  <label htmlFor="duration">
+                    Duration *
+                  </label>
+
 
                   <input
                     id="duration"
-                    className="input"
+                    className={
+                      fieldErrors.duration
+                        ? "input input-error"
+                        : "input"
+                    }
                     type="text"
                     name="duration"
                     value={formData.duration}
                     onChange={handleChange}
                     placeholder="e.g. 10 Weeks"
                   />
+
+
+                  {fieldErrors.duration && (
+
+                    <p className="field-error">
+                      {fieldErrors.duration}
+                    </p>
+
+                  )}
+
                 </div>
 
 
                 <div className="form-group">
-                  <label htmlFor="price">Price (Rs.) *</label>
+
+                  <label htmlFor="price">
+                    Price (Rs.) *
+                  </label>
+
 
                   <input
                     id="price"
-                    className="input"
+                    className={
+                      fieldErrors.price
+                        ? "input input-error"
+                        : "input"
+                    }
                     type="number"
                     min="0"
                     step="0.01"
@@ -395,58 +637,124 @@ function ManageCourses() {
                     onChange={handleChange}
                     placeholder="e.g. 25000"
                   />
+
+
+                  {fieldErrors.price && (
+
+                    <p className="field-error">
+                      {fieldErrors.price}
+                    </p>
+
+                  )}
+
                 </div>
 
               </div>
 
 
+              {/* ---------- Image ---------- */}
+
               <div className="form-group">
-                <label htmlFor="image">Image URL</label>
+
+                <label htmlFor="image">
+                  Image URL
+                </label>
+
 
                 <input
                   id="image"
-                  className="input"
+                  className={
+                    fieldErrors.image
+                      ? "input input-error"
+                      : "input"
+                  }
                   type="text"
                   name="image"
                   value={formData.image}
                   onChange={handleChange}
                   placeholder="https://placehold.co/300x180?text=React"
                 />
+
+
+                {fieldErrors.image && (
+
+                  <p className="field-error">
+                    {fieldErrors.image}
+                  </p>
+
+                )}
+
               </div>
 
 
+              {/* ---------- Description ---------- */}
+
               <div className="form-group">
-                <label htmlFor="description">Description</label>
+
+                <label htmlFor="description">
+                  Description
+                </label>
+
 
                 <textarea
                   id="description"
-                  className="input"
+                  className={
+                    fieldErrors.description
+                      ? "input input-error"
+                      : "input"
+                  }
                   rows="4"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
                   placeholder="Short summary of what students will learn."
                 />
+
+
+                {fieldErrors.description && (
+
+                  <p className="field-error">
+                    {fieldErrors.description}
+                  </p>
+
+                )}
+
               </div>
 
 
-              {formError && <p className="error">{formError}</p>}
+              {/* ---------- General Form Error ---------- */}
 
+              {formError && (
+
+                <p className="error">
+                  {formError}
+                </p>
+
+              )}
+
+
+              {/* ---------- Form Actions ---------- */}
 
               <div className="form-actions">
+
 
                 <button
                   type="submit"
                   className="btn btn-primary"
                   disabled={saving}
                 >
+
                   <FaSave />
+
                   {saving
                     ? "Saving..."
                     : editingId
                       ? "Update Course"
-                      : "Create Course"}
+                      : "Create Course"
+                  }
+
                 </button>
+
 
                 <button
                   type="button"
@@ -454,11 +762,16 @@ function ManageCourses() {
                   onClick={closeForm}
                   disabled={saving}
                 >
+
                   <FaTimes />
+
                   Cancel
+
                 </button>
 
+
               </div>
+
 
             </form>
 
@@ -467,118 +780,199 @@ function ManageCourses() {
         )}
 
 
-
-        {/* ---------- Course table ---------- */}
+        {/* ---------- Course Table ---------- */}
 
         <section className="section-card">
 
-          <div className="section-card-header">
-            <h2>All Courses{courses.length > 0 ? ` (${courses.length})` : ""}</h2>
 
-            <Link to="/admin/enrollments" className="link-inline">
-              <FaEye /> Manage enrollments
+          <div className="section-card-header">
+
+            <h2>
+              All Courses
+              {courses.length > 0
+                ? ` (${courses.length})`
+                : ""
+              }
+            </h2>
+
+
+            <Link
+              to="/admin/enrollments"
+              className="link-inline"
+            >
+
+              <FaEye />
+
+              Manage enrollments
+
             </Link>
+
           </div>
 
 
-          {loading && <p className="loading">Loading courses...</p>}
+          {loading && (
 
-
-          {!loading && courses.length === 0 && (
-            <p className="empty">
-              No courses yet. Click "Add Course" to create the first one.
+            <p className="loading">
+              Loading courses...
             </p>
+
           )}
 
 
-          {!loading && courses.length > 0 && (
+          {!loading &&
+            courses.length === 0 && (
 
-            <div className="table-wrapper">
+              <p className="empty">
+                No courses yet.
+                Click "Add Course" to create
+                the first one.
+              </p>
 
-              <table className="table">
+            )
+          }
 
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Image</th>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Level</th>
-                    <th>Duration</th>
-                    <th>Price</th>
-                    <th className="table-actions-column">Actions</th>
-                  </tr>
-                </thead>
 
-                <tbody>
+          {!loading &&
+            courses.length > 0 && (
 
-                  {courses.map((course) => (
+              <div className="table-wrapper">
 
-                    <tr key={course.id}>
 
-                      <td>{course.id}</td>
+                <table className="table">
 
-                      <td>
-                        <img
-                          src={course.image}
-                          alt={course.title}
-                          className="table-thumb"
-                        />
-                      </td>
 
-                      <td>{course.title}</td>
+                  <thead>
 
-                      <td>{course.category}</td>
+                    <tr>
 
-                      <td>
-                        <span className="tag tag-level">
-                          {course.level}
-                        </span>
-                      </td>
-
-                      <td>{course.duration}</td>
-
-                      <td>Rs. {course.price}</td>
-
-                      <td>
-                        <div className="table-actions">
-
-                          <button
-                            type="button"
-                            className="btn btn-small btn-outline"
-                            onClick={() => openEditForm(course)}
-                          >
-                            <FaEdit />
-                            Edit
-                          </button>
-
-                          <button
-                            type="button"
-                            className="btn btn-small btn-danger"
-                            onClick={() => handleDelete(course)}
-                          >
-                            <FaTrash />
-                            Delete
-                          </button>
-
-                        </div>
-                      </td>
+                      <th>ID</th>
+                      <th>Image</th>
+                      <th>Title</th>
+                      <th>Category</th>
+                      <th>Level</th>
+                      <th>Duration</th>
+                      <th>Price</th>
+                      <th className="table-actions-column">
+                        Actions
+                      </th>
 
                     </tr>
 
-                  ))}
+                  </thead>
 
-                </tbody>
 
-              </table>
+                  <tbody>
 
-            </div>
+                    {courses.map(
+                      (course) => (
 
-          )}
+                        <tr
+                          key={course.id}
+                        >
+
+                          <td>
+                            {course.id}
+                          </td>
+
+
+                          <td>
+
+                            <img
+                              src={course.image}
+                              alt={course.title}
+                              className="table-thumb"
+                            />
+
+                          </td>
+
+
+                          <td>
+                            {course.title}
+                          </td>
+
+
+                          <td>
+                            {course.category}
+                          </td>
+
+
+                          <td>
+
+                            <span className="tag tag-level">
+                              {course.level}
+                            </span>
+
+                          </td>
+
+
+                          <td>
+                            {course.duration}
+                          </td>
+
+
+                          <td>
+                            Rs. {course.price}
+                          </td>
+
+
+                          <td>
+
+                            <div className="table-actions">
+
+
+                              <button
+                                type="button"
+                                className="btn btn-small btn-outline"
+                                onClick={() =>
+                                  openEditForm(course)
+                                }
+                              >
+
+                                <FaEdit />
+
+                                Edit
+
+                              </button>
+
+
+                              <button
+                                type="button"
+                                className="btn btn-small btn-danger"
+                                onClick={() =>
+                                  handleDelete(course)
+                                }
+                              >
+
+                                <FaTrash />
+
+                                Delete
+
+                              </button>
+
+
+                            </div>
+
+                          </td>
+
+                        </tr>
+
+                      )
+                    )}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            )
+          }
 
         </section>
 
+
       </div>
+
 
       <Footer />
 
@@ -586,5 +980,5 @@ function ManageCourses() {
   );
 }
 
-export default ManageCourses;
 
+export default ManageCourses;

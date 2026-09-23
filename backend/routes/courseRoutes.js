@@ -12,10 +12,15 @@ const {
 } = require("../controllers/courseController");
 
 const authMiddleware = require("../middleware/authMiddleware");
+
 const roleMiddleware = require("../middleware/roleMiddleware");
 
+const {
+  validateCourse,
+} = require("../helpers/validateCourse");
 
-// Get statistics (course count + student count)
+
+// Get statistics
 router.get(
   "/stats",
   getStats
@@ -39,27 +44,29 @@ router.get(
 
 
 // Admin only
-// Create course (JWT + admin role required)
+// Create course
 router.post(
   "/",
   authMiddleware,
   roleMiddleware(["admin"]),
+  validateCourse,
   createCourse
 );
 
 
 // Admin only
-// Update course (JWT + admin role required)
+// Update course
 router.put(
   "/:id",
   authMiddleware,
   roleMiddleware(["admin"]),
+  validateCourse,
   updateCourse
 );
 
 
 // Admin only
-// Delete course (JWT + admin role required)
+// Delete course
 router.delete(
   "/:id",
   authMiddleware,

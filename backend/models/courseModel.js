@@ -55,6 +55,30 @@ const Course = {
   },
 
 
+  // Find course by title
+async findByTitle(title, excludeId = null) {
+  let sql = `
+    SELECT id, title
+    FROM courses
+    WHERE LOWER(TRIM(title)) = LOWER(TRIM(?))
+  `;
+
+  const params = [title];
+
+  // During update, exclude the current course
+  if (excludeId !== null) {
+    sql += " AND id <> ?";
+    params.push(excludeId);
+  }
+
+  sql += " LIMIT 1";
+
+  const [rows] = await db.execute(sql, params);
+
+  return rows[0];
+},
+
+
   // Update course
   async update(id, course) {
 

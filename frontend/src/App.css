@@ -1436,3 +1436,14 @@ textarea.input {
     width: 100%;
   }
 
+.input-error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.field-error {
+  margin: 4px 0 0;
+  color: #dc2626;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
