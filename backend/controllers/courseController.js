@@ -1,8 +1,13 @@
+
 const Course = require("../models/courseModel");
 const User = require("../models/userModel");
-const validateCourse = require("../helpers/validateCourse");
+const validateCourse = require("../helpers/ValidateCourse");
 
+
+// ======================================================
 // Get all courses
+// ======================================================
+
 const getAllCourses = async (req, res) => {
   try {
     const courses = await Course.getAll();
@@ -13,7 +18,10 @@ const getAllCourses = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error getting courses:", error.message);
+    console.error(
+      "Error getting courses:",
+      error.message
+    );
 
     res.status(500).json({
       message: "Internal server error",
@@ -22,7 +30,10 @@ const getAllCourses = async (req, res) => {
 };
 
 
+// ======================================================
 // Get one course
+// ======================================================
+
 const getCourseById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -41,7 +52,10 @@ const getCourseById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error getting course:", error.message);
+    console.error(
+      "Error getting course:",
+      error.message
+    );
 
     res.status(500).json({
       message: "Internal server error",
@@ -50,52 +64,84 @@ const getCourseById = async (req, res) => {
 };
 
 
+// ======================================================
 // Create course
+// ======================================================
+
 const createCourse = async (req, res) => {
   try {
-    const course = req.validatedCourse;
+    /*
+      Authentication and authorization are already performed
+      by the route middleware BEFORE this controller runs.
 
-    // Check duplicate title
+      Order:
+      Authentication
+          ↓
+      Authorization
+          ↓
+      Validation
+          ↓
+      Duplicate check
+          ↓
+      Database operation
+    */
+
+    // ---------- Validate and trim ----------
+    const validation = validateCourse(req.body);
+
+    if (!validation.isValid) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: validation.errors,
+      });
+    }
+
+    const courseData = validation.data;
+
+    // ---------- Duplicate title check ----------
     const existingCourse = await Course.findByTitle(
-      course.title
+      courseData.title
     );
 
     if (existingCourse) {
-      return res.status(409).json({
-        message: "Course title already exists.",
+      return res.status(400).json({
+        message: "Validation failed",
         errors: {
-          title: "A course with this title already exists.",
+          title: "A course with this title already exists",
         },
       });
     }
 
-    const courseId = await Course.create(course);
+    // ---------- Create ----------
+    const courseId = await Course.create(courseData);
 
-    return res.status(201).json({
+    res.status(201).json({
       message: "Course created successfully",
       courseId,
     });
+
   } catch (error) {
     console.error(
       "Error creating course:",
       error.message
     );
 
-    return res.status(500).json({
+    res.status(500).json({
       message: "Internal server error",
     });
   }
 };
 
 
+// ======================================================
 // Update course
+// ======================================================
+
 const updateCourse = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const course = req.validatedCourse;
-
-    // Check whether course exists
+    // ---------- Check if course exists ----------
     const existingCourse = await Course.getById(id);
 
     if (!existingCourse) {
@@ -104,52 +150,66 @@ const updateCourse = async (req, res) => {
       });
     }
 
-    // Check duplicate title
-    // Exclude current course ID
-    const duplicateCourse =
-      await Course.findByTitle(
-        course.title,
-        id
-      );
+    // ---------- Validate and trim ----------
+    const validation = validateCourse(req.body);
+
+    if (!validation.isValid) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: validation.errors,
+      });
+    }
+
+    const courseData = validation.data;
+
+    // ---------- Duplicate title check ----------
+    // Exclude the course currently being updated.
+    const duplicateCourse = await Course.findByTitle(
+      courseData.title,
+      id
+    );
 
     if (duplicateCourse) {
-      return res.status(409).json({
-        message: "Course title already exists.",
+      return res.status(400).json({
+        message: "Validation failed",
         errors: {
-          title:
-            "A course with this title already exists.",
+          title: "A course with this title already exists",
         },
       });
     }
 
-    await Course.update(id, course);
+    // ---------- Update ----------
+    await Course.update(id, courseData);
 
-    const updatedCourse =
-      await Course.getById(id);
+    // ---------- Get updated course ----------
+    const updatedCourse = await Course.getById(id);
 
-    return res.status(200).json({
+    res.status(200).json({
       message: "Course updated successfully",
       course: updatedCourse,
     });
+
   } catch (error) {
     console.error(
       "Error updating course:",
       error.message
     );
 
-    return res.status(500).json({
+    res.status(500).json({
       message: "Internal server error",
     });
   }
 };
 
 
+// ======================================================
 // Delete course
+// ======================================================
+
 const deleteCourse = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if course exists
     const existingCourse = await Course.getById(id);
 
     if (!existingCourse) {
@@ -165,7 +225,10 @@ const deleteCourse = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error deleting course:", error.message);
+    console.error(
+      "Error deleting course:",
+      error.message
+    );
 
     res.status(500).json({
       message: "Internal server error",
@@ -174,7 +237,10 @@ const deleteCourse = async (req, res) => {
 };
 
 
-// Get statistics (PUBLIC)
+// ======================================================
+// Get statistics - PUBLIC
+// ======================================================
+
 const getStats = async (req, res) => {
   try {
     const courses = await Course.getAll();
@@ -183,17 +249,21 @@ const getStats = async (req, res) => {
     res.status(200).json({
       message: "Statistics retrieved successfully",
       courseCount: courses.length,
-      studentCount: studentCount,
+      studentCount,
     });
 
   } catch (error) {
-    console.error("Error getting statistics:", error.message);
+    console.error(
+      "Error getting statistics:",
+      error.message
+    );
 
     res.status(500).json({
       message: "Internal server error",
     });
   }
 };
+
 
 module.exports = {
   getAllCourses,

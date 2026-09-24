@@ -1,3 +1,4 @@
+
 const express = require("express");
 
 const router = express.Router();
@@ -12,60 +13,52 @@ const {
 } = require("../controllers/courseController");
 
 const authMiddleware = require("../middleware/authMiddleware");
-
 const roleMiddleware = require("../middleware/roleMiddleware");
 
-const {
-  validateCourse,
-} = require("../helpers/validateCourse");
 
+// ======================================================
+// Public routes
+// ======================================================
 
-// Get statistics
+// Statistics
 router.get(
   "/stats",
   getStats
 );
 
-
-// PUBLIC
-// View all courses
+// Get all courses
 router.get(
   "/",
   getAllCourses
 );
 
-
-// PUBLIC
-// View one course
+// Get one course
 router.get(
   "/:id",
   getCourseById
 );
 
 
-// Admin only
+// ======================================================
+// Admin-only routes
+// ======================================================
+
 // Create course
 router.post(
   "/",
   authMiddleware,
   roleMiddleware(["admin"]),
-  validateCourse,
   createCourse
 );
 
-
-// Admin only
 // Update course
 router.put(
   "/:id",
   authMiddleware,
   roleMiddleware(["admin"]),
-  validateCourse,
   updateCourse
 );
 
-
-// Admin only
 // Delete course
 router.delete(
   "/:id",
@@ -76,3 +69,4 @@ router.delete(
 
 
 module.exports = router;
+
