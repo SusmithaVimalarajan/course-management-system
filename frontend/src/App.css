@@ -1418,6 +1418,8 @@ textarea.input {
 
 
 
+
+
   .filter-bar {
     flex-direction: column;
     align-items: stretch;
@@ -1446,4 +1448,280 @@ textarea.input {
   color: #dc2626;
   font-size: 0.85rem;
   line-height: 1.4;
+}
+
+
+/* =========================================================
+   CR-003
+   Search / Filter / Sort
+   ========================================================= */
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 18px;
+
+  background-color: var(--color-white);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+
+  padding: 18px;
+
+  margin-bottom: 18px;
+
+  box-shadow: var(--shadow);
+}
+
+.filter-bar .form-group {
+  min-width: 200px;
+  flex: 1;
+}
+
+.filter-bar .search-group {
+  min-width: 280px;
+  flex: 2;
+}
+
+
+/* Search input */
+
+.search-input-wrapper {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+
+  left: 12px;
+  top: 50%;
+
+  transform: translateY(-50%);
+
+  color: var(--color-muted);
+
+  pointer-events: none;
+}
+
+.search-input {
+  padding-left: 38px;
+}
+
+
+/* Reset button */
+
+.clear-filters-btn {
+  white-space: nowrap;
+}
+
+
+/* Result counter */
+
+.result-summary {
+  margin-bottom: 18px;
+
+  color: var(--color-muted);
+
+  font-size: 0.92rem;
+}
+
+.result-summary strong {
+  color: var(--color-dark);
+}
+
+.result-filter-note {
+  color: var(--color-primary);
+}
+
+
+/* =========================================================
+   Sort buttons
+   ========================================================= */
+
+.sort-button {
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  padding: 0;
+
+  border: none;
+
+  background: transparent;
+
+  color: var(--color-dark);
+
+  font: inherit;
+
+  font-size: 0.8rem;
+
+  font-weight: bold;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.5px;
+
+  cursor: pointer;
+}
+
+.sort-button:hover {
+  color: var(--color-primary);
+}
+
+.sort-button.active {
+  color: var(--color-primary);
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+
+  color: var(--color-muted);
+}
+
+.sort-icon.active {
+  color: var(--color-primary);
+}
+
+
+/* =========================================================
+   No search/filter results
+   ========================================================= */
+
+.no-results {
+  text-align: center;
+
+  padding: 45px 20px;
+
+  border: 1px dashed #cbd5e1;
+
+  border-radius: var(--radius-sm);
+
+  background-color: #f8fafc;
+}
+
+.no-results-icon {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  width: 48px;
+  height: 48px;
+
+  margin: 0 auto 14px;
+
+  border-radius: 50%;
+
+  background-color: #eff6ff;
+
+  color: var(--color-primary);
+
+  font-size: 1.2rem;
+}
+
+.no-results h3 {
+  margin-bottom: 6px;
+
+  font-size: 1.15rem;
+}
+
+.no-results p {
+  margin: 0 0 18px;
+
+  color: var(--color-muted);
+}
+
+
+/* =========================================
+   Course Management Filters
+   ========================================= */
+
+.filter-bar {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  align-items: end;
+  gap: 18px;
+
+  background-color: var(--color-white);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+
+  padding: 18px;
+
+  margin-bottom: 26px;
+
+  box-shadow: var(--shadow);
+}
+
+.filter-bar .form-group {
+  min-width: 0;
+  width: 100%;
+}
+
+.filter-bar .form-group label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.filter-bar .input,
+.filter-bar input[type="text"],
+.filter-bar input[type="number"],
+.filter-bar select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.clear-filters-btn {
+  width: auto;
+  white-space: nowrap;
+  height: 42px;
+}
+
+
+/* Tablet */
+@media (max-width: 900px) {
+
+  .filter-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filter-bar .search-group {
+    grid-column: 1 / -1;
+  }
+
+  .clear-filters-btn {
+    width: 100%;
+  }
+}
+
+
+/* Mobile */
+@media (max-width: 600px) {
+
+  .filter-bar {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .filter-bar .search-group {
+    grid-column: auto;
+  }
+
+  .filter-bar .input,
+  .filter-bar input[type="text"],
+  .filter-bar input[type="number"],
+  .filter-bar select {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .clear-filters-btn {
+    width: 100%;
+  }
 }
