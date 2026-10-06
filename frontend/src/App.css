@@ -942,6 +942,19 @@ textarea.input {
   width: 100%;
   margin-bottom: 0;
 }
+/* =========================================
+   CR-006 - ENROLLMENT STATE MESSAGE
+   ========================================= */
+
+.enrollment-state-message {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  margin-bottom: 0;
+}
 
 
 /* =========================================
@@ -1718,12 +1731,31 @@ textarea.input {
    VIEW COURSE BUTTON
    ========================================= */
 
-.enrollment-view-btn {
-  width: 100%;
+/* =========================================
+   VIEW COURSE + CANCEL ENROLLMENT BUTTONS
+   ========================================= */
+
+.enrollment-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 
   margin-top: auto;
+}
 
+.enrollment-card-actions .btn {
+  width: 100%;
   justify-content: center;
+}
+
+
+.enrollment-view-btn {
+  width: 100%;
+}
+
+
+.enrollment-cancel-btn {
+  width: 100%;
 }
 
 

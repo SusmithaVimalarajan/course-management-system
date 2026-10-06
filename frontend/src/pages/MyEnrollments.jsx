@@ -6,6 +6,7 @@ import {
   FaSortAmountDown,
   FaLayerGroup,
   FaSearch,
+  FaTimesCircle,
 } from "react-icons/fa";
 
 import api from "../services/api";
@@ -20,6 +21,10 @@ function MyEnrollments() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // ID of the enrollment currently being cancelled
+  const [cancellingId, setCancellingId] = useState(null);
 
   // Sorting option
   const [sortBy, setSortBy] = useState("newest");
@@ -27,16 +32,22 @@ function MyEnrollments() {
   const user = getUser();
 
 
-  // ---------- Load student's enrollments ----------
+  // ===================================================
+  // Load student's enrollments
+  // ===================================================
+
   useEffect(() => {
 
     const getEnrollments = async () => {
 
       try {
 
-        const response = await api.get("/enrollments/my");
+        const response =
+          await api.get("/enrollments/my");
 
-        setEnrollments(response.data.enrollments || []);
+        setEnrollments(
+          response.data.enrollments || []
+        );
 
       } catch (error) {
 
@@ -57,7 +68,63 @@ function MyEnrollments() {
   }, []);
 
 
-  // ---------- Format date ----------
+  // ===================================================
+  // Cancel enrollment
+  // ===================================================
+
+  const handleCancelEnrollment = async (enrollment) => {
+
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel your enrollment in "${enrollment.title}"?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setCancellingId(enrollment.id);
+
+    try {
+
+      const response =
+        await api.delete(
+          `/enrollments/my/${enrollment.id}`
+        );
+
+      setSuccess(
+        response.data.message ||
+        "Enrollment cancelled successfully"
+      );
+
+      // Refresh the list after successful cancellation
+      const refreshedResponse =
+        await api.get("/enrollments/my");
+
+      setEnrollments(
+        refreshedResponse.data.enrollments || []
+      );
+
+    } catch (error) {
+
+      setError(
+        error.response?.data?.message ||
+        "Failed to cancel enrollment. Please try again."
+      );
+
+    } finally {
+
+      setCancellingId(null);
+
+    }
+  };
+
+
+  // ===================================================
+  // Format date
+  // ===================================================
+
   const formatDate = (value) => {
 
     if (!value) return "-";
@@ -67,7 +134,10 @@ function MyEnrollments() {
   };
 
 
-  // ---------- Statistics ----------
+  // ===================================================
+  // Statistics
+  // ===================================================
+
   const totalCourses = enrollments.length;
 
 
@@ -92,7 +162,10 @@ function MyEnrollments() {
   ).size;
 
 
-  // ---------- Sort enrollments ----------
+  // ===================================================
+  // Sort enrollments
+  // ===================================================
+
   const sortedEnrollments = useMemo(() => {
 
     const sorted = [...enrollments];
@@ -176,7 +249,10 @@ function MyEnrollments() {
   }, [enrollments, sortBy]);
 
 
-  // ---------- Currency format ----------
+  // ===================================================
+  // Currency format
+  // ===================================================
+
   const formatPrice = (price) => {
 
     return Number(price || 0).toLocaleString(
@@ -236,6 +312,15 @@ function MyEnrollments() {
         )}
 
 
+        {/* ---------- Success ---------- */}
+
+        {success && !loading && (
+          <p className="success">
+            {success}
+          </p>
+        )}
+
+
         {/* ---------- Error ---------- */}
 
         {error && !loading && (
@@ -281,9 +366,6 @@ function MyEnrollments() {
 
               <div className="enrollment-stats">
 
-
-                {/* Total Courses */}
-
                 <div className="enrollment-stat-card">
 
                   <div className="enrollment-stat-icon">
@@ -292,14 +374,11 @@ function MyEnrollments() {
 
                   <div>
                     <h3>{totalCourses}</h3>
-
                     <p>Total Enrolled Courses</p>
                   </div>
 
                 </div>
 
-
-                {/* Total Course Value */}
 
                 <div className="enrollment-stat-card">
 
@@ -318,8 +397,6 @@ function MyEnrollments() {
                 </div>
 
 
-                {/* Average Price */}
-
                 <div className="enrollment-stat-card">
 
                   <div className="enrollment-stat-icon">
@@ -337,8 +414,6 @@ function MyEnrollments() {
                 </div>
 
 
-                {/* Distinct Categories */}
-
                 <div className="enrollment-stat-card">
 
                   <div className="enrollment-stat-icon">
@@ -352,7 +427,6 @@ function MyEnrollments() {
                   </div>
 
                 </div>
-
 
               </div>
 
@@ -431,128 +505,153 @@ function MyEnrollments() {
               <div className="enrollment-grid">
 
                 {sortedEnrollments.map(
-                  (enrollment) => (
+                  (enrollment) => {
 
-                    <article
-                      className="enrollment-card"
-                      key={enrollment.id}
-                    >
+                    const isCancelling =
+                      cancellingId === enrollment.id;
 
-                      {/* Course Image */}
+                    return (
+                      <article
+                        className="enrollment-card"
+                        key={enrollment.id}
+                      >
 
-                      <div className="course-image">
+                        {/* Course Image */}
 
-                        {enrollment.image ? (
+                        <div className="course-image">
 
-                          <img
-                            src={enrollment.image}
-                            alt={enrollment.title}
-                            loading="lazy"
-                          />
+                          {enrollment.image ? (
 
-                        ) : (
+                            <img
+                              src={enrollment.image}
+                              alt={enrollment.title}
+                              loading="lazy"
+                            />
 
-                          <div className="course-image-placeholder">
-                            {enrollment.title}
-                          </div>
+                          ) : (
 
-                        )}
+                            <div className="course-image-placeholder">
+                              {enrollment.title}
+                            </div>
 
-                      </div>
-
-
-                      {/* Card Body */}
-
-                      <div className="enrollment-card-body">
-
-
-                        {/* Tags */}
-
-                        <div className="course-tags">
-
-                          <span className="tag tag-category">
-                            {enrollment.category}
-                          </span>
-
-                          <span className="tag tag-level">
-                            {enrollment.level}
-                          </span>
-
-                        </div>
-
-
-                        {/* Title */}
-
-                        <h3>
-                          {enrollment.title}
-                        </h3>
-
-
-                        {/* Description */}
-
-                        <p className="course-description">
-
-                          {enrollment.description?.slice(
-                            0,
-                            100
                           )}
 
-                          {enrollment.description?.length > 100
-                            ? "..."
-                            : ""}
-
-                        </p>
+                        </div>
 
 
-                        {/* Course Information */}
+                        {/* Card Body */}
 
-                        <div className="course-meta">
+                        <div className="enrollment-card-body">
 
-                          <div>
-                            <strong>
-                              Duration:
-                            </strong>{" "}
-                            {enrollment.duration}
+                          {/* Tags */}
+
+                          <div className="course-tags">
+
+                            <span className="tag tag-category">
+                              {enrollment.category}
+                            </span>
+
+                            <span className="tag tag-level">
+                              {enrollment.level}
+                            </span>
+
                           </div>
 
 
-                          <div>
-                            <strong>
-                              Price:
-                            </strong>{" "}
-                            Rs.{" "}
-                            {formatPrice(
-                              enrollment.price
+                          {/* Title */}
+
+                          <h3>
+                            {enrollment.title}
+                          </h3>
+
+
+                          {/* Description */}
+
+                          <p className="course-description">
+
+                            {enrollment.description?.slice(
+                              0,
+                              100
                             )}
+
+                            {enrollment.description?.length > 100
+                              ? "..."
+                              : ""}
+
+                          </p>
+
+
+                          {/* Course Information */}
+
+                          <div className="course-meta">
+
+                            <div>
+                              <strong>
+                                Duration:
+                              </strong>{" "}
+                              {enrollment.duration}
+                            </div>
+
+
+                            <div>
+                              <strong>
+                                Price:
+                              </strong>{" "}
+                              Rs.{" "}
+                              {formatPrice(
+                                enrollment.price
+                              )}
+                            </div>
+
+
+                            <div>
+                              <strong>
+                                Enrolled on:
+                              </strong>{" "}
+                              {formatDate(
+                                enrollment.enrolled_at
+                              )}
+                            </div>
+
                           </div>
 
 
-                          <div>
-                            <strong>
-                              Enrolled on:
-                            </strong>{" "}
-                            {formatDate(
-                              enrollment.enrolled_at
-                            )}
+                          {/* Actions */}
+
+                          <div className="enrollment-card-actions">
+
+                            <Link
+                              to={`/courses/${enrollment.course_id}`}
+                              className="btn btn-outline enrollment-view-btn"
+                            >
+                              View Course
+                            </Link>
+
+
+                            <button
+                              type="button"
+                              className="btn btn-danger enrollment-cancel-btn"
+                              onClick={() =>
+                                handleCancelEnrollment(
+                                  enrollment
+                                )
+                              }
+                              disabled={isCancelling}
+                            >
+                              <FaTimesCircle />
+
+                              {isCancelling
+                                ? "Cancelling..."
+                                : "Cancel Enrollment"}
+                            </button>
+
                           </div>
 
                         </div>
 
-
-                        {/* View Course */}
-
-                        <Link
-                          to={`/courses/${enrollment.course_id}`}
-                          className="btn btn-outline enrollment-view-btn"
-                        >
-                          View Course
-                        </Link>
-
-                      </div>
-
-                    </article>
-
-                  )
+                      </article>
+                    );
+                  }
                 )}
 
               </div>

@@ -1,7 +1,11 @@
 const Enrollment = require("../models/enrollmentModel");
 const Course = require("../models/courseModel");
 
+
+// =====================================================
 // Enroll in a course
+// =====================================================
+
 const enrollInCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
@@ -62,7 +66,10 @@ const enrollInCourse = async (req, res) => {
 };
 
 
+// =====================================================
 // Get logged-in student's courses
+// =====================================================
+
 const getMyEnrollments = async (req, res) => {
   try {
     const studentId = req.user.id;
@@ -88,7 +95,64 @@ const getMyEnrollments = async (req, res) => {
 };
 
 
+// =====================================================
+// Student cancellation of own enrollment
+// =====================================================
+
+const cancelMyEnrollment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // IMPORTANT:
+    // The student identity comes only from authenticated JWT.
+    const studentId = req.user.id;
+
+    // Enrollment ID validation
+    if (!/^\d+$/.test(id) || Number(id) <= 0) {
+      return res.status(400).json({
+        message: "Invalid enrollment ID",
+      });
+    }
+
+    // Delete only when BOTH:
+    // 1. enrollment ID matches
+    // 2. logged-in student's ID matches
+    const result =
+      await Enrollment.deleteByStudent(
+        Number(id),
+        studentId
+      );
+
+    // This covers:
+    // - enrollment does not exist
+    // - enrollment belongs to another student
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Enrollment not found",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Enrollment cancelled successfully",
+    });
+
+  } catch (error) {
+    console.error(
+      "Error cancelling enrollment:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+
+// =====================================================
 // Get students enrolled in a course
+// =====================================================
+
 const getCourseEnrollments = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -124,7 +188,10 @@ const getCourseEnrollments = async (req, res) => {
 };
 
 
+// =====================================================
 // Get all enrollments
+// =====================================================
+
 const getAllEnrollments = async (req, res) => {
   try {
     const enrollments =
@@ -148,7 +215,10 @@ const getAllEnrollments = async (req, res) => {
 };
 
 
-// Delete enrollment
+// =====================================================
+// Admin delete enrollment
+// =====================================================
+
 const deleteEnrollment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -185,4 +255,5 @@ module.exports = {
   getCourseEnrollments,
   getAllEnrollments,
   deleteEnrollment,
+  cancelMyEnrollment,
 };
