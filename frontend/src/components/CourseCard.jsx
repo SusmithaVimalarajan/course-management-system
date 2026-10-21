@@ -1,13 +1,25 @@
 import { Link } from "react-router-dom";
 import { FaEye } from "react-icons/fa";
 
+
 function CourseCard({ course }) {
+
+  const isUnlimited =
+    course.max_students === null ||
+    course.max_students === undefined;
+
+
+  const isFull =
+    Boolean(course.is_full);
+
 
   return (
 
     <article className="course-card">
 
-      {/* Course image from the database */}
+
+      {/* Course image */}
+
       <img
         src={course.image}
         alt={course.title}
@@ -18,7 +30,11 @@ function CourseCard({ course }) {
 
       <div className="course-card-body">
 
+
+        {/* Tags */}
+
         <div className="course-card-tags">
+
           <span className="tag tag-category">
             {course.category}
           </span>
@@ -26,38 +42,120 @@ function CourseCard({ course }) {
           <span className="tag tag-level">
             {course.level}
           </span>
+
         </div>
 
+
+        {/* Title */}
 
         <h3 className="course-card-title">
           {course.title}
         </h3>
 
 
-        {/* Short summary - we trim the long description */}
+        {/* Description */}
+
         <p className="course-card-summary">
-          {course.description?.slice(0, 110)}
-          {course.description?.length > 110 ? "..." : ""}
+
+          {course.description?.slice(
+            0,
+            110
+          )}
+
+          {course.description?.length > 110
+            ? "..."
+            : ""}
+
         </p>
 
 
+        {/* Course information */}
+
         <ul className="course-card-meta">
-          <li>
-            <strong>Duration:</strong> {course.duration}
-          </li>
 
           <li>
-            <strong>Price:</strong> Rs. {course.price}
+            <strong>
+              Duration:
+            </strong>{" "}
+            {course.duration}
           </li>
+
+
+          <li>
+            <strong>
+              Price:
+            </strong>{" "}
+            Rs. {course.price}
+          </li>
+
         </ul>
 
+
+        {/* =================================================
+            Availability
+            ================================================= */}
+
+        {isUnlimited ? (
+
+          <div className="course-availability course-availability-unlimited">
+
+            <span>
+              Availability
+            </span>
+
+            <strong>
+              Unlimited
+            </strong>
+
+          </div>
+
+        ) : isFull ? (
+
+          <div className="course-availability course-availability-full">
+
+            <span>
+              Course Full
+            </span>
+
+            <strong>
+              {course.enrolled_count || 0}
+              {" / "}
+              {course.max_students}
+              {" students"}
+            </strong>
+
+          </div>
+
+        ) : (
+
+          <div className="course-availability course-availability-available">
+
+            <span>
+              Availability
+            </span>
+
+            <strong>
+              {course.enrolled_count || 0}
+              {" / "}
+              {course.max_students}
+              {" students"}
+            </strong>
+
+          </div>
+
+        )}
+
+
+        {/* View Details */}
 
         <Link
           to={`/courses/${course.id}`}
           className="btn btn-primary btn-block"
         >
+
           <FaEye />
           View Details
+
         </Link>
 
       </div>
@@ -65,5 +163,6 @@ function CourseCard({ course }) {
     </article>
   );
 }
+
 
 export default CourseCard;

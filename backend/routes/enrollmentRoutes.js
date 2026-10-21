@@ -1,5 +1,5 @@
-const express = require("express");
 
+const express = require("express");
 const router = express.Router();
 
 const {
@@ -7,19 +7,13 @@ const {
   getMyEnrollments,
   getCourseEnrollments,
   getAllEnrollments,
-  deleteEnrollment,
-  cancelMyEnrollment,
+  deleteEnrollment
 } = require("../controllers/enrollmentController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
-
-// =====================================================
-// STUDENT
-// =====================================================
-
-// Enroll in a course
+// Student: enroll in a course
 router.post(
   "/",
   authMiddleware,
@@ -27,8 +21,7 @@ router.post(
   enrollInCourse
 );
 
-
-// View my enrolled courses
+// Student: view own courses
 router.get(
   "/my",
   authMiddleware,
@@ -36,22 +29,7 @@ router.get(
   getMyEnrollments
 );
 
-
-// Cancel my own enrollment
-// IMPORTANT: Keep this route before "/:id"
-router.delete(
-  "/my/:id",
-  authMiddleware,
-  roleMiddleware(["student"]),
-  cancelMyEnrollment
-);
-
-
-// =====================================================
-// ADMIN
-// =====================================================
-
-// View all enrollments
+// Admin: paginated enrollment list
 router.get(
   "/",
   authMiddleware,
@@ -59,8 +37,7 @@ router.get(
   getAllEnrollments
 );
 
-
-// View students enrolled in a course
+// Admin: list students in one course
 router.get(
   "/course/:courseId",
   authMiddleware,
@@ -68,14 +45,12 @@ router.get(
   getCourseEnrollments
 );
 
-
-// Admin delete enrollment
+// Admin: delete an enrollment
 router.delete(
   "/:id",
   authMiddleware,
   roleMiddleware(["admin"]),
   deleteEnrollment
 );
-
 
 module.exports = router;

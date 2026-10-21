@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useParams,
+} from "react-router-dom";
+
 import {
   FaChartBar,
   FaGraduationCap,
@@ -9,6 +14,7 @@ import {
 } from "react-icons/fa";
 
 import api from "../services/api";
+
 import {
   isLoggedIn,
   isStudent,
@@ -21,86 +27,115 @@ import Footer from "../components/Footer";
 
 function CourseDetails() {
 
-  const { id } = useParams();
-  const location = useLocation();
+  const { id } =
+    useParams();
 
-  const [course, setCourse] = useState(null);
-
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  const [enrolling, setEnrolling] = useState(false);
-
-  // Student enrollment state
-  const [isEnrolled, setIsEnrolled] = useState(false);
+  const location =
+    useLocation();
 
 
-  // Read the login state from localStorage
-  const loggedIn = isLoggedIn();
-  const studentLoggedIn = isStudent();
-  const adminLoggedIn = isAdmin();
+  const [course, setCourse] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  const [enrolling, setEnrolling] =
+    useState(false);
+
+  const [isEnrolled, setIsEnrolled] =
+    useState(false);
+
+
+  const loggedIn =
+    isLoggedIn();
+
+  const studentLoggedIn =
+    isStudent();
+
+  const adminLoggedIn =
+    isAdmin();
 
 
   // ===================================================
-  // Load course and enrollment state
+  // Load course + current enrollment state
   // ===================================================
 
   useEffect(() => {
 
-    const getCourseData = async () => {
+    const getCourseData =
+      async () => {
 
-      try {
+        try {
 
-        setLoading(true);
-        setError("");
-
-        // Load course
-        const response =
-          await api.get(`/courses/${id}`);
-
-        setCourse(response.data.course);
+          setLoading(true);
+          setError("");
 
 
-        // Load current student's enrollments
-        // only when logged in as student
-        if (studentLoggedIn) {
-
-          const enrollmentResponse =
-            await api.get("/enrollments/my");
-
-          const studentEnrollments =
-            enrollmentResponse.data.enrollments || [];
-
-          const enrolled =
-            studentEnrollments.some(
-              (enrollment) =>
-                String(enrollment.course_id) ===
-                String(id)
+          // Get course with capacity data
+          const response =
+            await api.get(
+              `/courses/${id}`
             );
 
-          setIsEnrolled(enrolled);
 
-        } else {
+          setCourse(
+            response.data.course
+          );
 
-          setIsEnrolled(false);
+
+          // Check current student enrollment
+          if (studentLoggedIn) {
+
+            const enrollmentResponse =
+              await api.get(
+                "/enrollments/my"
+              );
+
+
+            const studentEnrollments =
+              enrollmentResponse.data.enrollments || [];
+
+
+            const enrolled =
+              studentEnrollments.some(
+                (enrollment) =>
+                  String(
+                    enrollment.course_id
+                  ) === String(id)
+              );
+
+
+            setIsEnrolled(
+              enrolled
+            );
+
+          } else {
+
+            setIsEnrolled(false);
+
+          }
+
+        } catch (error) {
+
+          setError(
+            error.response?.data?.message ||
+            "Failed to load course"
+          );
+
+        } finally {
+
+          setLoading(false);
 
         }
+      };
 
-      } catch (error) {
-
-        setError(
-          error.response?.data?.message ||
-          "Failed to load course"
-        );
-
-      } finally {
-
-        setLoading(false);
-
-      }
-    };
 
     getCourseData();
 
@@ -111,58 +146,108 @@ function CourseDetails() {
   // Enroll
   // ===================================================
 
-  const handleEnroll = async () => {
+  const handleEnroll =
+    async () => {
 
-    setError("");
-    setSuccess("");
-    setEnrolling(true);
+      setError("");
+      setSuccess("");
+      setEnrolling(true);
 
-    try {
 
-      const response =
-        await api.post(
-          "/enrollments",
-          {
-            // Backend reads courseId
-            // from the request body
-            courseId: id,
-          }
+      try {
+
+        const response =
+          await api.post(
+            "/enrollments",
+            {
+              courseId: id,
+            }
+          );
+
+
+        setSuccess(
+          response.data.message ||
+          "Course enrollment successful"
         );
 
-      setSuccess(
-        response.data.message ||
-        "Course enrollment successful"
-      );
-
-      // Immediately update the UI
-      setIsEnrolled(true);
-
-    } catch (error) {
-
-      // Already enrolled
-      if (error.response?.status === 409) {
 
         setIsEnrolled(true);
 
-        setError(
-          "You are already enrolled in this course. You can see it in My Enrollments."
+
+        // Refresh the course availability
+        const refreshedCourse =
+          await api.get(
+            `/courses/${id}`
+          );
+
+
+        setCourse(
+          refreshedCourse.data.course
         );
 
-      } else {
+      } catch (error) {
 
-        setError(
-          error.response?.data?.message ||
-          "Enrollment failed. Please try again."
-        );
+        const responseData =
+          error.response?.data;
+
+
+        // Full course
+        if (
+          error.response?.status === 409 &&
+          responseData?.code === "COURSE_FULL"
+        ) {
+
+          setCourse((currentCourse) => {
+
+            if (!currentCourse) {
+              return currentCourse;
+            }
+
+            return {
+              ...currentCourse,
+              is_full: true,
+              seats_remaining: 0,
+            };
+          });
+
+
+          setError(
+            responseData.message ||
+            "Course is full. No seats are currently available."
+          );
+
+        }
+
+        // Already enrolled
+        else if (
+          error.response?.status === 409 &&
+          responseData?.code === "ALREADY_ENROLLED"
+        ) {
+
+          setIsEnrolled(true);
+
+          setError(
+            responseData.message ||
+            "You are already enrolled in this course."
+          );
+
+        }
+
+        else {
+
+          setError(
+            responseData?.message ||
+            "Enrollment failed. Please try again."
+          );
+
+        }
+
+      } finally {
+
+        setEnrolling(false);
 
       }
-
-    } finally {
-
-      setEnrolling(false);
-
-    }
-  };
+    };
 
 
   // ===================================================
@@ -190,7 +275,7 @@ function CourseDetails() {
 
 
   // ===================================================
-  // Course not found / server error
+  // Course not found
   // ===================================================
 
   if (error && !course) {
@@ -224,12 +309,26 @@ function CourseDetails() {
   }
 
 
-  return (
+  const isUnlimited =
+    course.max_students === null ||
+    course.max_students === undefined;
 
+
+  const availabilityClass =
+    isUnlimited
+      ? "details-availability-unlimited"
+      : course.is_full
+        ? "details-availability-full"
+        : "details-availability-available";
+
+
+  return (
     <>
       <Navbar />
 
+
       <div className="container">
+
 
         {/* Breadcrumb */}
 
@@ -250,7 +349,10 @@ function CourseDetails() {
 
         <div className="details-layout">
 
-          {/* ---------- Left: image ---------- */}
+
+          {/* =================================================
+              Left: image
+              ================================================= */}
 
           <div className="details-image-wrapper">
 
@@ -263,9 +365,12 @@ function CourseDetails() {
           </div>
 
 
-          {/* ---------- Right: information ---------- */}
+          {/* =================================================
+              Right: information
+              ================================================= */}
 
           <div className="details-info">
+
 
             <div className="course-card-tags">
 
@@ -292,20 +397,24 @@ function CourseDetails() {
 
             <dl className="details-list">
 
+
               <div>
                 <dt>Category</dt>
                 <dd>{course.category}</dd>
               </div>
+
 
               <div>
                 <dt>Level</dt>
                 <dd>{course.level}</dd>
               </div>
 
+
               <div>
                 <dt>Duration</dt>
                 <dd>{course.duration}</dd>
               </div>
+
 
               <div>
                 <dt>Price</dt>
@@ -314,16 +423,75 @@ function CourseDetails() {
                 </dd>
               </div>
 
+
             </dl>
 
 
-            {/* ---------- Messages ---------- */}
+            {/* =================================================
+                Availability
+                ================================================= */}
+
+            <div
+              className={`details-availability ${availabilityClass}`}
+            >
+
+              {isUnlimited ? (
+
+                <>
+                  <strong>
+                    Availability
+                  </strong>
+
+                  <span>
+                    Unlimited
+                  </span>
+                </>
+
+              ) : course.is_full ? (
+
+                <>
+                  <strong>
+                    Course Full
+                  </strong>
+
+                  <span>
+                    {course.enrolled_count || 0}
+                    {" / "}
+                    {course.max_students}
+                    {" students"}
+                  </span>
+                </>
+
+              ) : (
+
+                <>
+                  <strong>
+                    Availability
+                  </strong>
+
+                  <span>
+                    {course.enrolled_count || 0}
+                    {" / "}
+                    {course.max_students}
+                    {" students"}
+                  </span>
+                </>
+
+              )}
+
+            </div>
+
+
+            {/* =================================================
+                Messages
+                ================================================= */}
 
             {success && (
               <p className="success">
                 {success}
               </p>
             )}
+
 
             {error && (
               <p className="error">
@@ -332,9 +500,12 @@ function CourseDetails() {
             )}
 
 
-            {/* ---------- Action area ---------- */}
+            {/* =================================================
+                Action area
+                ================================================= */}
 
             <div className="details-actions">
+
 
               {/* Not logged in */}
 
@@ -343,8 +514,10 @@ function CourseDetails() {
                 <div className="notice">
 
                   <p>
-                    Please login as a student to enroll in this course.
+                    Please login as a student
+                    to enroll in this course.
                   </p>
+
 
                   <Link
                     to="/login"
@@ -356,20 +529,23 @@ function CourseDetails() {
                     }}
                     className="btn btn-primary"
                   >
+
                     <FaSignInAlt />
                     Login to Enroll
+
                   </Link>
 
                 </div>
-
               )}
 
 
-              {/* Logged in as student */}
+              {/* Logged in student */}
 
               {studentLoggedIn && (
 
                 <>
+
+                  {/* Already enrolled */}
 
                   {isEnrolled ? (
 
@@ -379,27 +555,71 @@ function CourseDetails() {
 
                         <FaCheckCircle />
 
-                        You are currently enrolled in this course.
+                        <span>
+                          You are currently enrolled
+                          in this course.
+                        </span>
 
                       </div>
+
 
                       <Link
                         to="/my-enrollments"
                         className="btn btn-outline"
                       >
+
                         <FaGraduationCap />
                         My Enrollments
+
+                      </Link>
+
+                    </>
+
+                  ) : course.is_full ? (
+
+                    /* Full course */
+
+                    <>
+
+                      <div className="error enrollment-state-message">
+
+                        <span>
+                          Course Full.
+                          No seats are currently available.
+                        </span>
+
+                      </div>
+
+
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-lg"
+                        disabled
+                      >
+
+                        <FaShoppingCart />
+                        Course Full
+
+                      </button>
+
+
+                      <Link
+                        to="/my-enrollments"
+                        className="btn btn-outline"
+                      >
+
+                        <FaGraduationCap />
+                        My Enrollments
+
                       </Link>
 
                     </>
 
                   ) : (
 
-                    <>
+                    /* Available / Unlimited course */
 
-                      <div className="notice enrollment-state-message">
-                        You are not currently enrolled in this course.
-                      </div>
+                    <>
 
                       <button
                         type="button"
@@ -416,12 +636,15 @@ function CourseDetails() {
 
                       </button>
 
+
                       <Link
                         to="/my-enrollments"
                         className="btn btn-outline"
                       >
+
                         <FaGraduationCap />
                         My Enrollments
+
                       </Link>
 
                     </>
@@ -429,11 +652,10 @@ function CourseDetails() {
                   )}
 
                 </>
-
               )}
 
 
-              {/* Logged in as admin */}
+              {/* Logged in admin */}
 
               {adminLoggedIn && (
 
@@ -444,16 +666,18 @@ function CourseDetails() {
                     Only students can enroll in courses.
                   </p>
 
+
                   <Link
                     to="/admin/courses"
                     className="btn btn-primary"
                   >
+
                     <FaChartBar />
                     Manage Courses
+
                   </Link>
 
                 </div>
-
               )}
 
             </div>
@@ -464,10 +688,12 @@ function CourseDetails() {
 
       </div>
 
+
       <Footer />
 
     </>
   );
 }
+
 
 export default CourseDetails;

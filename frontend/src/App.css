@@ -1882,4 +1882,304 @@ textarea.input {
     grid-template-columns: 1fr;
   }
 
+  
+}
+
+/* =========================================
+   CR-007 - COURSE AVAILABILITY
+   ========================================= */
+
+.course-availability {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  margin: 0 0 16px;
+  padding: 10px 12px;
+
+  border-radius: var(--radius-sm);
+
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.course-availability span {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.course-availability strong {
+  font-size: 0.85rem;
+}
+
+
+/* Available limited course */
+
+.course-availability-available {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: var(--color-primary-dark);
+}
+
+
+/* Unlimited */
+
+.course-availability-unlimited {
+  background-color: #f8fafc;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+
+/* Full course */
+
+.course-availability-full {
+  background-color: var(--color-error-bg);
+  border: 1px solid #fecaca;
+  color: var(--color-error-text);
+}
+
+
+/* =========================================
+   CR-007 - COURSE DETAILS AVAILABILITY
+   ========================================= */
+
+.details-availability {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-bottom: 24px;
+  padding: 14px 16px;
+
+  border-radius: var(--radius-sm);
+
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+
+.details-availability strong {
+  font-size: 0.95rem;
+}
+
+.details-availability span {
+  font-size: 0.9rem;
+}
+
+
+/* Available */
+
+.details-availability-available {
+  background-color: #eff6ff;
+  border-left: 4px solid var(--color-primary);
+  color: var(--color-primary-dark);
+}
+
+
+/* Unlimited */
+
+.details-availability-unlimited {
+  background-color: #f8fafc;
+  border-left: 4px solid #94a3b8;
+  color: var(--color-text);
+}
+
+
+/* Full */
+
+.details-availability-full {
+  background-color: var(--color-error-bg);
+  border-left: 4px solid var(--color-danger);
+  color: var(--color-error-text);
+}
+
+
+/* =========================================
+   CR-007 - MANAGE COURSES AVAILABILITY
+   ========================================= */
+
+.course-availability-table {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  min-width: 130px;
+
+  font-size: 0.82rem;
+}
+
+.course-availability-table strong {
+  font-size: 0.85rem;
+}
+
+.course-availability-table span {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+
+/* Available */
+
+.course-availability-table.course-availability-available strong {
+  color: var(--color-primary-dark);
+}
+
+
+/* Unlimited */
+
+.course-availability-table.course-availability-unlimited strong {
+  color: var(--color-text);
+}
+
+
+/* Full */
+
+.course-availability-table.course-availability-full strong {
+  color: var(--color-danger);
+}
+
+
+/* =========================================
+   CR-007 - FORM HELP
+   ========================================= */
+
+.field-help {
+  margin-top: 2px;
+
+  color: var(--color-muted);
+
+  font-size: 0.8rem;
+}
+
+
+/* =========================================
+   CR-007 - ENROLLMENT STATE
+   ========================================= */
+
+.enrollment-state-message {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  margin-bottom: 0;
+}
+
+
+/* =========================================
+   CR-007 - RESPONSIVE
+   ========================================= */
+
+@media (max-width: 700px) {
+
+  .course-availability {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .details-availability {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+}
+
+
+/* CR-008: Enrollment filtering and pagination */
+
+.cr008-filters {
+  margin-bottom: 24px;
+  padding: 20px;
+}
+
+.cr008-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.cr008-filter-grid .form-group {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.cr008-filter-grid label {
+  display: block;
+  margin-bottom: 7px;
+  font-weight: 600;
+}
+
+.cr008-filter-grid .input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.cr008-reset-wrap .btn {
+  width: 100%;
+}
+
+.cr008-total {
+  margin: 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.cr008-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 0 4px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 18px;
+}
+
+.cr008-range,
+.cr008-page-info {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.cr008-pagination-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cr008-pagination-buttons .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1000px) {
+  .cr008-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .cr008-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cr008-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cr008-pagination-buttons {
+    width: 100%;
+  }
+
+  .cr008-pagination-buttons .btn {
+    flex: 1;
+  }
 }

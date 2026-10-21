@@ -3,7 +3,10 @@ CREATE DATABASE IF NOT EXISTS course_management;
 USE course_management;
 
 
+-- =====================================================
 -- Users table
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
@@ -17,7 +20,10 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 
+-- =====================================================
 -- Courses table
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS courses (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
@@ -33,11 +39,17 @@ CREATE TABLE IF NOT EXISTS courses (
 
     image VARCHAR(500),
 
-    description TEXT
+    description TEXT,
+
+    -- NULL means unlimited capacity
+    max_students INT NULL DEFAULT NULL
 );
 
 
+-- =====================================================
 -- Enrollments table
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS enrollments (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
