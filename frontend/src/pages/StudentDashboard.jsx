@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -5,8 +6,6 @@ import {
   FaEye,
   FaGraduationCap,
   FaSearch,
-  FaMoneyBillWave,
-  FaSortAmountDown,
 } from "react-icons/fa";
 
 import api from "../services/api";
@@ -14,10 +13,16 @@ import { getUser } from "../services/auth";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
+const EMPTY_REPORT = {
+  enrolledCourses: 0,
+  distinctCategories: 0,
+  earliestEnrollmentDate: null,
+  latestEnrollmentDate: null,
+  recentEnrollments: [],
+};
 
 function StudentDashboard() {
-
-  const [enrollments, setEnrollments] = useState([]);
+  const [report, setReport] = useState(EMPTY_REPORT);
 
   const [stats, setStats] = useState({
     courseCount: 0,
@@ -26,142 +31,120 @@ function StudentDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [statsError, setStatsError] = useState("");
 
   const user = getUser();
 
-
-  // ---------- Load dashboard data ----------
   useEffect(() => {
+    let isMounted = true;
 
     const loadDashboard = async () => {
+      const reportRequest = api.get("/reports/my");
+      const statsRequest = api.get("/courses/stats");
 
-      try {
+      const [reportResult, statsResult] = await Promise.allSettled([
+        reportRequest,
+        statsRequest,
+      ]);
 
-        const [
-          enrollmentsResponse,
-          statsResponse,
-        ] = await Promise.all([
+      if (!isMounted) return;
 
-          api.get("/enrollments/my"),
+      // Process the personal student report independently.
+      if (reportResult.status === "fulfilled") {
+        const data = reportResult.value.data || {};
 
-          api.get("/courses/stats"),
-
-        ]);
-
-
-        setEnrollments(
-          enrollmentsResponse.data.enrollments || []
-        );
-
-
-        setStats({
-          courseCount:
-            statsResponse.data.courseCount || 0,
-
-          studentCount:
-            statsResponse.data.studentCount || 0,
+        setReport({
+          ...EMPTY_REPORT,
+          ...data,
+          recentEnrollments: Array.isArray(
+            data.recentEnrollments
+          )
+            ? data.recentEnrollments
+            : [],
         });
 
-
-      } catch (error) {
-
+        setError("");
+      } else {
         setError(
-          error.response?.data?.message ||
-          "Failed to load your dashboard"
+          reportResult.reason?.response?.data?.message ||
+            "Failed to load your learning report. Please try again later."
         );
-
-      } finally {
-
-        setLoading(false);
-
       }
 
-    };
+      // Other dashboard statistics are independent.
+      if (statsResult.status === "fulfilled") {
+        const data = statsResult.value.data || {};
 
+        setStats({
+          courseCount: Number(data.courseCount) || 0,
+          studentCount: Number(data.studentCount) || 0,
+        });
+
+        setStatsError("");
+      } else {
+        setStatsError(
+          statsResult.reason?.response?.data?.message ||
+            "Course statistics are temporarily unavailable."
+        );
+      }
+
+      setLoading(false);
+    };
 
     loadDashboard();
 
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
+  const formatNumber = (value) => {
+    const number = Number(value);
 
-  // ---------- Recent enrollments ----------
-  const recentEnrollments =
-    enrollments.slice(0, 3);
-
-
-  // ---------- Total enrollment value ----------
-  const totalEnrollmentValue =
-    enrollments.reduce(
-      (total, enrollment) => {
-
-        return total + Number(
-          enrollment.price || 0
-        );
-
-      },
-      0
-    );
-
-
-  // ---------- Average enrollment price ----------
-  const averageEnrollmentPrice =
-    enrollments.length > 0
-      ? totalEnrollmentValue / enrollments.length
-      : 0;
-
-
-  // ---------- Format price ----------
-  const formatPrice = (value) => {
-
-    return Number(value || 0).toLocaleString(
-      "en-IN",
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    );
-
+    return Number.isFinite(number)
+      ? number.toLocaleString()
+      : "0";
   };
 
-
-  // ---------- Format date ----------
   const formatDate = (value) => {
-
     if (!value) return "-";
 
-    return new Date(value).toLocaleDateString();
+    const date = new Date(value);
 
+    return Number.isNaN(date.getTime())
+      ? "-"
+      : date.toLocaleDateString();
   };
 
+  const formatPrice = (value) => {
+    const price = Number(value);
+
+    return Number.isFinite(price)
+      ? price.toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : "0.00";
+  };
+
+  const recentEnrollments = report.recentEnrollments;
 
   return (
-
     <>
       <Navbar />
 
       <main className="container">
-
-
-        {/* ---------- Welcome ---------- */}
-
+        {/* Welcome */}
         <div className="page-header">
-
           <div>
-
-            <h1>
-              Student Dashboard
-            </h1>
+            <h1>Student Dashboard</h1>
 
             <p className="page-subtitle">
-
               Welcome back,{" "}
-              {user?.full_name ||
-                user?.username}!
-
+              {user?.full_name || user?.username}!
+              {" "}Here is your learning activity summary.
             </p>
-
           </div>
-
 
           <Link
             to="/courses"
@@ -170,159 +153,102 @@ function StudentDashboard() {
             <FaSearch />
             Browse Courses
           </Link>
-
         </div>
 
+        {/* Report error does not prevent other dashboard sections */}
+        {error && <p className="error">{error}</p>}
 
-        {/* ---------- Error ---------- */}
-
-        {error && (
-          <p className="error">
-            {error}
-          </p>
+        {statsError && (
+          <p className="notice">{statsError}</p>
         )}
 
-
-        {/* ---------- Main Statistics ---------- */}
-
+        {/* Main statistics */}
         <div className="dashboard-grid">
-
-
-          {/* My Enrolled Courses */}
-
           <div className="dashboard-card">
-
             <span className="dashboard-card-value">
-
               {loading
                 ? "..."
-                : enrollments.length}
-
+                : formatNumber(report.enrolledCourses)}
             </span>
 
             <span className="dashboard-card-label">
               My Enrolled Courses
             </span>
-
           </div>
 
-
-          {/* Courses Available */}
-
           <div className="dashboard-card">
-
             <span className="dashboard-card-value">
-
               {loading
                 ? "..."
-                : stats.courseCount}
+                : formatNumber(report.distinctCategories)}
+            </span>
 
+            <span className="dashboard-card-label">
+              Categories Explored
+            </span>
+          </div>
+
+          <div className="dashboard-card">
+            <span className="dashboard-card-value">
+              {loading ? "..." : formatNumber(stats.courseCount)}
             </span>
 
             <span className="dashboard-card-label">
               Courses Available
             </span>
-
           </div>
 
-
-          {/* Registered Students */}
-
           <div className="dashboard-card">
-
             <span className="dashboard-card-value">
-
-              {loading
-                ? "..."
-                : stats.studentCount}
-
+              {loading ? "..." : formatNumber(stats.studentCount)}
             </span>
 
             <span className="dashboard-card-label">
               Registered Students
             </span>
-
           </div>
-
-
         </div>
 
+        {/* Enrollment date summary */}
+        <section className="section-card">
+          <div className="section-card-header">
+            <h2>My Enrollment Summary</h2>
+          </div>
 
-        {/* ---------- Enrollment Financial Summary ---------- */}
-
-        {!loading &&
-          enrollments.length > 0 && (
-
-            <div className="dashboard-enrollment-summary">
-
-
-              {/* Total Value */}
-
-              <div className="dashboard-summary-card">
-
-                <div className="dashboard-summary-icon">
-                  <FaMoneyBillWave />
-                </div>
-
-                <div>
-
-                  <strong>
-                    Rs.{" "}
-                    {formatPrice(
-                      totalEnrollmentValue
-                    )}
-                  </strong>
-
-                  <span>
-                    Total Course Value
-                  </span>
-
-                </div>
-
+          {loading ? (
+            <p className="loading">
+              Loading your enrollment summary...
+            </p>
+          ) : (
+            <div className="cr009-student-summary">
+              <div className="cr009-summary-item">
+                <span>First Enrollment</span>
+                <strong>
+                  {formatDate(report.earliestEnrollmentDate)}
+                </strong>
               </div>
 
-
-              {/* Average Price */}
-
-              <div className="dashboard-summary-card">
-
-                <div className="dashboard-summary-icon">
-                  <FaSortAmountDown />
-                </div>
-
-                <div>
-
-                  <strong>
-                    Rs.{" "}
-                    {formatPrice(
-                      averageEnrollmentPrice
-                    )}
-                  </strong>
-
-                  <span>
-                    Average Course Price
-                  </span>
-
-                </div>
-
+              <div className="cr009-summary-item">
+                <span>Latest Enrollment</span>
+                <strong>
+                  {formatDate(report.latestEnrollmentDate)}
+                </strong>
               </div>
-
-
             </div>
-
           )}
 
+          {!loading && report.enrolledCourses === 0 && (
+            <p className="empty">
+              You have not enrolled in any courses yet.
+              Browse the courses page to get started.
+            </p>
+          )}
+        </section>
 
-        {/* ---------- Recent Enrollments ---------- */}
-
+        {/* Recent enrollments */}
         <section className="section-card">
-
           <div className="section-card-header">
-
-            <h2>
-              My Recent Enrollments
-            </h2>
-
+            <h2>My Recent Enrollments</h2>
 
             <Link
               to="/my-enrollments"
@@ -331,187 +257,94 @@ function StudentDashboard() {
               <FaEye />
               {" "}View all
             </Link>
-
           </div>
 
-
-          {loading && (
+          {loading ? (
             <p className="loading">
-              Loading...
+              Loading your recent enrollments...
             </p>
-          )}
+          ) : recentEnrollments.length === 0 ? (
+            <p className="empty">
+              No recent enrollments to display.
+            </p>
+          ) : (
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Course</th>
+                    <th>Category</th>
+                    <th>Level</th>
+                    <th>Price</th>
+                    <th>Enrolled On</th>
+                  </tr>
+                </thead>
 
-
-          {!loading &&
-            recentEnrollments.length === 0 && (
-
-              <p className="empty">
-
-                You have not enrolled in any
-                courses yet. Head over to the
-                courses page and enroll in your
-                first course.
-
-              </p>
-
-            )}
-
-
-          {!loading &&
-            recentEnrollments.length > 0 && (
-
-              <div className="table-wrapper">
-
-                <table className="table">
-
-                  <thead>
-
-                    <tr>
-
-                      <th>
-                        Course
-                      </th>
-
-                      <th>
-                        Category
-                      </th>
-
-                      <th>
-                        Level
-                      </th>
-
-                      <th>
-                        Price
-                      </th>
-
-                      <th>
-                        Enrolled On
-                      </th>
-
-                    </tr>
-
-                  </thead>
-
-
-                  <tbody>
-
-                    {recentEnrollments.map(
-                      (enrollment) => (
-
-                        <tr
-                          key={enrollment.id}
+                <tbody>
+                  {recentEnrollments.map((enrollment) => (
+                    <tr key={enrollment.id}>
+                      <td>
+                        <Link
+                          to={`/courses/${enrollment.courseId}`}
                         >
+                          {enrollment.title || "-"}
+                        </Link>
+                      </td>
 
-                          <td>
+                      <td>{enrollment.category || "-"}</td>
 
-                            <Link
-                              to={`/courses/${enrollment.course_id}`}
-                            >
-                              {enrollment.title}
-                            </Link>
+                      <td>
+                        <span className="tag tag-level">
+                          {enrollment.level || "-"}
+                        </span>
+                      </td>
 
-                          </td>
+                      <td>
+                        Rs. {formatPrice(enrollment.price)}
+                      </td>
 
-
-                          <td>
-                            {enrollment.category}
-                          </td>
-
-
-                          <td>
-                            {enrollment.level}
-                          </td>
-
-
-                          <td>
-
-                            Rs.{" "}
-                            {formatPrice(
-                              enrollment.price
-                            )}
-
-                          </td>
-
-
-                          <td>
-                            {formatDate(
-                              enrollment.enrolled_at
-                            )}
-                          </td>
-
-                        </tr>
-
-                      )
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-            )}
-
+                      <td>
+                        {formatDate(enrollment.enrolledAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
-
-        {/* ---------- Quick Actions ---------- */}
-
+        {/* Quick actions */}
         <section className="section-card">
-
           <div className="section-card-header">
-
-            <h2>
-              Quick Actions
-            </h2>
-
+            <h2>Quick Actions</h2>
           </div>
 
-
           <div className="quick-actions">
-
-
             <Link
               to="/courses"
               className="quick-action"
             >
-
               <span className="quick-action-icon">
                 <FaBook />
               </span>
-
-              <span>
-                Browse all courses
-              </span>
-
+              <span>Browse all courses</span>
             </Link>
-
 
             <Link
               to="/my-enrollments"
               className="quick-action"
             >
-
               <span className="quick-action-icon">
                 <FaGraduationCap />
               </span>
-
-              <span>
-                View my enrollments
-              </span>
-
+              <span>View my enrollments</span>
             </Link>
-
-
           </div>
-
         </section>
-
-
       </main>
 
       <Footer />
-
     </>
   );
 }
