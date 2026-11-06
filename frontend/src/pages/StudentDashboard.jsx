@@ -1,24 +1,27 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import {
   FaBook,
   FaEye,
   FaGraduationCap,
-  FaSearch,
+  FaSearch
 } from "react-icons/fa";
 
 import api from "../services/api";
 import { getUser } from "../services/auth";
+
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 const EMPTY_REPORT = {
   enrolledCourses: 0,
+  pendingRequests: 0,
+  rejectedRequests: 0,
   distinctCategories: 0,
   earliestEnrollmentDate: null,
   latestEnrollmentDate: null,
-  recentEnrollments: [],
+  recentEnrollments: []
 };
 
 function StudentDashboard() {
@@ -26,7 +29,7 @@ function StudentDashboard() {
 
   const [stats, setStats] = useState({
     courseCount: 0,
-    studentCount: 0,
+    studentCount: 0
   });
 
   const [loading, setLoading] = useState(true);
@@ -42,14 +45,15 @@ function StudentDashboard() {
       const reportRequest = api.get("/reports/my");
       const statsRequest = api.get("/courses/stats");
 
-      const [reportResult, statsResult] = await Promise.allSettled([
-        reportRequest,
-        statsRequest,
-      ]);
+      const [reportResult, statsResult] =
+        await Promise.allSettled([
+          reportRequest,
+          statsRequest
+        ]);
 
       if (!isMounted) return;
 
-      // Process the personal student report independently.
+      // Student report.
       if (reportResult.status === "fulfilled") {
         const data = reportResult.value.data || {};
 
@@ -60,31 +64,31 @@ function StudentDashboard() {
             data.recentEnrollments
           )
             ? data.recentEnrollments
-            : [],
+            : []
         });
 
         setError("");
       } else {
         setError(
           reportResult.reason?.response?.data?.message ||
-            "Failed to load your learning report. Please try again later."
+          "Failed to load your learning report."
         );
       }
 
-      // Other dashboard statistics are independent.
+      // Course statistics.
       if (statsResult.status === "fulfilled") {
         const data = statsResult.value.data || {};
 
         setStats({
           courseCount: Number(data.courseCount) || 0,
-          studentCount: Number(data.studentCount) || 0,
+          studentCount: Number(data.studentCount) || 0
         });
 
         setStatsError("");
       } else {
         setStatsError(
           statsResult.reason?.response?.data?.message ||
-            "Course statistics are temporarily unavailable."
+          "Course statistics are temporarily unavailable."
         );
       }
 
@@ -117,62 +121,64 @@ function StudentDashboard() {
   };
 
   const formatPrice = (value) => {
-    const price = Number(value);
-
-    return Number.isFinite(price)
-      ? price.toLocaleString("en-IN", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
-      : "0.00";
+    return Number(value || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
   };
-
-  const recentEnrollments = report.recentEnrollments;
 
   return (
     <>
       <Navbar />
 
       <main className="container">
-        {/* Welcome */}
         <div className="page-header">
           <div>
             <h1>Student Dashboard</h1>
 
             <p className="page-subtitle">
-              Welcome back,{" "}
-              {user?.full_name || user?.username}!
-              {" "}Here is your learning activity summary.
+              Welcome back, {user?.full_name || user?.username}.
+              {" "}Here is your learning overview.
             </p>
           </div>
 
-          <Link
-            to="/courses"
-            className="btn btn-primary"
-          >
+          <Link to="/courses" className="btn btn-primary">
             <FaSearch />
             Browse Courses
           </Link>
         </div>
 
-        {/* Report error does not prevent other dashboard sections */}
         {error && <p className="error">{error}</p>}
 
-        {statsError && (
-          <p className="notice">{statsError}</p>
-        )}
-
-        {/* Main statistics */}
+        {/* Enrollment summary cards */}
         <div className="dashboard-grid">
           <div className="dashboard-card">
             <span className="dashboard-card-value">
-              {loading
-                ? "..."
-                : formatNumber(report.enrolledCourses)}
+              {loading ? "..." : formatNumber(report.enrolledCourses)}
             </span>
 
             <span className="dashboard-card-label">
-              My Enrolled Courses
+              Approved Courses
+            </span>
+          </div>
+
+          <div className="dashboard-card cr011-pending-card">
+            <span className="dashboard-card-value">
+              {loading ? "..." : formatNumber(report.pendingRequests)}
+            </span>
+
+            <span className="dashboard-card-label">
+              Pending Requests
+            </span>
+          </div>
+
+          <div className="dashboard-card">
+            <span className="dashboard-card-value">
+              {loading ? "..." : formatNumber(report.rejectedRequests)}
+            </span>
+
+            <span className="dashboard-card-label">
+              Rejected Requests
             </span>
           </div>
 
@@ -187,20 +193,27 @@ function StudentDashboard() {
               Categories Explored
             </span>
           </div>
+        </div>
 
+        {/* General course statistics */}
+        <div className="dashboard-grid">
           <div className="dashboard-card">
             <span className="dashboard-card-value">
-              {loading ? "..." : formatNumber(stats.courseCount)}
+              {statsError
+                ? "-"
+                : formatNumber(stats.courseCount)}
             </span>
 
             <span className="dashboard-card-label">
-              Courses Available
+              Available Courses
             </span>
           </div>
 
           <div className="dashboard-card">
             <span className="dashboard-card-value">
-              {loading ? "..." : formatNumber(stats.studentCount)}
+              {statsError
+                ? "-"
+                : formatNumber(stats.studentCount)}
             </span>
 
             <span className="dashboard-card-label">
@@ -209,10 +222,14 @@ function StudentDashboard() {
           </div>
         </div>
 
+        {statsError && (
+          <p className="error">{statsError}</p>
+        )}
+
         {/* Enrollment date summary */}
         <section className="section-card">
           <div className="section-card-header">
-            <h2>My Enrollment Summary</h2>
+            <h2>My Approved Enrollment Summary</h2>
           </div>
 
           {loading ? (
@@ -239,33 +256,32 @@ function StudentDashboard() {
 
           {!loading && report.enrolledCourses === 0 && (
             <p className="empty">
-              You have not enrolled in any courses yet.
-              Browse the courses page to get started.
+              You do not have any approved courses yet.
+              Your pending requests will appear below.
             </p>
           )}
         </section>
 
-        {/* Recent enrollments */}
+        {/* Recent requests */}
         <section className="section-card">
           <div className="section-card-header">
-            <h2>My Recent Enrollments</h2>
+            <h2>My Recent Enrollment Requests</h2>
 
             <Link
               to="/my-enrollments"
               className="link-inline"
             >
-              <FaEye />
-              {" "}View all
+              <FaEye /> View all
             </Link>
           </div>
 
           {loading ? (
             <p className="loading">
-              Loading your recent enrollments...
+              Loading your recent requests...
             </p>
-          ) : recentEnrollments.length === 0 ? (
+          ) : report.recentEnrollments.length === 0 ? (
             <p className="empty">
-              No recent enrollments to display.
+              No enrollment requests to display.
             </p>
           ) : (
             <div className="table-wrapper">
@@ -276,12 +292,13 @@ function StudentDashboard() {
                     <th>Category</th>
                     <th>Level</th>
                     <th>Price</th>
-                    <th>Enrolled On</th>
+                    <th>Requested On</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {recentEnrollments.map((enrollment) => (
+                  {report.recentEnrollments.map((enrollment) => (
                     <tr key={enrollment.id}>
                       <td>
                         <Link
@@ -292,12 +309,7 @@ function StudentDashboard() {
                       </td>
 
                       <td>{enrollment.category || "-"}</td>
-
-                      <td>
-                        <span className="tag tag-level">
-                          {enrollment.level || "-"}
-                        </span>
-                      </td>
+                      <td>{enrollment.level || "-"}</td>
 
                       <td>
                         Rs. {formatPrice(enrollment.price)}
@@ -305,6 +317,14 @@ function StudentDashboard() {
 
                       <td>
                         {formatDate(enrollment.enrolledAt)}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`cr011-status cr011-status-${enrollment.status}`}
+                        >
+                          {enrollment.status?.toUpperCase()}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -314,23 +334,13 @@ function StudentDashboard() {
           )}
         </section>
 
-        {/* Quick actions */}
+        {/* Quick links */}
         <section className="section-card">
           <div className="section-card-header">
-            <h2>Quick Actions</h2>
+            <h2>My Learning</h2>
           </div>
 
           <div className="quick-actions">
-            <Link
-              to="/courses"
-              className="quick-action"
-            >
-              <span className="quick-action-icon">
-                <FaBook />
-              </span>
-              <span>Browse all courses</span>
-            </Link>
-
             <Link
               to="/my-enrollments"
               className="quick-action"
@@ -338,7 +348,19 @@ function StudentDashboard() {
               <span className="quick-action-icon">
                 <FaGraduationCap />
               </span>
-              <span>View my enrollments</span>
+
+              <span>View enrollment requests and decisions</span>
+            </Link>
+
+            <Link
+              to="/courses"
+              className="quick-action"
+            >
+              <span className="quick-action-icon">
+                <FaBook />
+              </span>
+
+              <span>Browse available courses</span>
             </Link>
           </div>
         </section>

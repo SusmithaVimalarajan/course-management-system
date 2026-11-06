@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS courses (
 
 -- =====================================================
 -- Enrollments table
+-- CR-011: Enrollment Approval Workflow
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS enrollments (
@@ -57,20 +58,60 @@ CREATE TABLE IF NOT EXISTS enrollments (
 
     course_id INT NOT NULL,
 
+    status ENUM('pending', 'approved', 'rejected')
+        NOT NULL DEFAULT 'pending',
+
+    reviewed_by INT NULL,
+
+    reviewed_at DATETIME NULL,
+
+    decision_note TEXT NULL,
+
     enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    -- A student cannot enroll in the same course twice
-    UNIQUE (student_id, course_id),
+    -- Only one pending or approved request per student/course.
+    -- Rejected requests can be submitted again.
+    active_course_id INT
+    GENERATED ALWAYS AS (
+        CASE
+            WHEN status IN ('pending', 'approved')
+            THEN course_id
+            ELSE NULL
+        END
+    ) STORED,
 
-    -- Student account
-    FOREIGN KEY (student_id)
+    UNIQUE KEY uq_student_active_course (
+        student_id,
+        active_course_id
+    ),
+
+    INDEX idx_enrollments_status (status),
+
+    INDEX idx_enrollments_course_status (
+        course_id,
+        status
+    ),
+
+    INDEX idx_enrollments_student_status (
+        student_id,
+        status
+    ),
+
+    CONSTRAINT fk_enrollment_student
+        FOREIGN KEY (student_id)
         REFERENCES users(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
 
-    -- Course
-    FOREIGN KEY (course_id)
+    CONSTRAINT fk_enrollment_course
+        FOREIGN KEY (course_id)
         REFERENCES courses(id)
         ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_enrollment_reviewed_by
+        FOREIGN KEY (reviewed_by)
+        REFERENCES users(id)
+        ON DELETE SET NULL
         ON UPDATE CASCADE
 );

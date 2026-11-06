@@ -2388,3 +2388,206 @@ textarea.input {
   }
 }
 
+/* =====================================================
+   CR-011: ENROLLMENT STATUS
+===================================================== */
+
+.cr011-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.cr011-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.cr011-status-pending {
+  color: #8a5a00;
+  background: #fff2cc;
+  border: 1px solid #f1d58a;
+}
+
+.cr011-status-approved {
+  color: #176b38;
+  background: #dff5e6;
+  border: 1px solid #a9dfba;
+}
+
+.cr011-status-rejected {
+  color: #a12626;
+  background: #fde5e5;
+  border: 1px solid #efb5b5;
+}
+
+
+/* =====================================================
+   CR-011: STUDENT STATUS MESSAGES
+===================================================== */
+
+.cr011-info {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff6dc;
+  color: #775500;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.cr011-approved-message {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #e5f7eb;
+  color: #176b38;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.cr011-rejection-note {
+  margin: 14px 0;
+  padding: 14px;
+  border-left: 4px solid #d9534f;
+  border-radius: 6px;
+  background: #fff0f0;
+  color: #8d2525;
+}
+
+.cr011-rejection-note strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.cr011-rejection-note p {
+  margin: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.cr011-approved-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid #dce5ee;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.cr011-approved-summary span,
+.cr011-approved-summary strong {
+  font-size: 14px;
+}
+
+
+/* =====================================================
+   CR-011: ADMIN APPROVAL ACTIONS
+===================================================== */
+
+.cr011-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 150px;
+}
+
+.cr011-admin-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.cr011-reject-form {
+  width: 240px;
+  max-width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e2e5e9;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.cr011-reject-form label {
+  display: block;
+  margin-bottom: 7px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.cr011-reject-form textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+}
+
+.cr011-reject-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.cr011-table-note {
+  max-width: 200px;
+  margin-top: 5px;
+  color: #a12626;
+  font-size: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+
+/* =====================================================
+   CR-011: ADMIN DASHBOARD PENDING CARD
+===================================================== */
+
+.cr011-pending-card {
+  border-top: 4px solid #e4ae37;
+}
+
+.cr011-pending-card a {
+  display: inline-block;
+  margin-top: 8px;
+  color: #8a5a00;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+
+/* =====================================================
+   CR-011: RESPONSIVE DESIGN
+===================================================== */
+
+@media (max-width: 768px) {
+  .cr011-approved-summary {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cr011-admin-actions {
+    min-width: 130px;
+  }
+
+  .cr011-reject-form {
+    width: 100%;
+  }
+
+  .cr011-status-row {
+    align-items: flex-start;
+  }
+}

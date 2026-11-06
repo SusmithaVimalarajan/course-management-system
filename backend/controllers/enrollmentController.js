@@ -1,4 +1,3 @@
-
 const Enrollment = require("../models/enrollmentModel");
 const Course = require("../models/courseModel");
 
@@ -36,9 +35,7 @@ const parsePositiveInteger = (
   const parsed = Number(value);
 
   if (!Number.isSafeInteger(parsed) || parsed > maximum) {
-    throw new Error(
-      `${name} must be between 1 and ${maximum}`
-    );
+    throw new Error(`${name} must be between 1 and ${maximum}`);
   }
 
   return parsed;
@@ -67,6 +64,10 @@ const parseDate = (value, name) => {
   return value;
 };
 
+// =====================================================
+// CR-008 + CR-011: Validate admin list options
+// =====================================================
+
 const getValidatedOptions = (req) => {
   const allowed = new Set([
     "q",
@@ -76,7 +77,8 @@ const getValidatedOptions = (req) => {
     "sort",
     "order",
     "page",
-    "limit"
+    "limit",
+    "status"
   ]);
 
   for (const key of Object.keys(req.query)) {
@@ -96,11 +98,7 @@ const getValidatedOptions = (req) => {
   const courseId =
     rawCourseId === undefined
       ? null
-      : parsePositiveInteger(
-          rawCourseId,
-          "courseId",
-          null
-        );
+      : parsePositiveInteger(rawCourseId, "courseId", null);
 
   const from = parseDate(getQueryString(req, "from"), "from");
   const to = parseDate(getQueryString(req, "to"), "to");
@@ -120,6 +118,19 @@ const getValidatedOptions = (req) => {
     throw new Error("order must be asc or desc");
   }
 
+  const rawStatus = getQueryString(req, "status");
+
+  const status = rawStatus === undefined ? null : rawStatus;
+
+  if (
+    status !== null &&
+    !["pending", "approved", "rejected"].includes(status)
+  ) {
+    throw new Error(
+      "status must be pending, approved, or rejected"
+    );
+  }
+
   const page = parsePositiveInteger(
     getQueryString(req, "page"),
     "page",
@@ -133,14 +144,34 @@ const getValidatedOptions = (req) => {
     MAX_LIMIT
   );
 
-  return { q, courseId, from, to, sort, order, page, limit };
+  return {
+    q,
+    courseId,
+    from,
+    to,
+    status,
+    sort,
+    order,
+    page,
+    limit
+  };
 };
 
-// Student: enroll in a course
+// =====================================================
+// STUDENT: Submit enrollment request
+// POST /api/enrollments
+// =====================================================
+
 const enrollInCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
-    const studentId = req.user.id;
+    const studentId = Number(req.user?.id);
+
+    if (!Number.isSafeInteger(studentId) || studentId <= 0) {
+      return res.status(401).json({
+        message: "Unable to identify the logged-in student"
+      });
+    }
 
     if (
       courseId === undefined ||
@@ -153,6 +184,7 @@ const enrollInCourse = async (req, res) => {
     }
 
     const validCourseId = Number(courseId);
+
     const course = await Course.getById(validCourseId);
 
     if (!course) {
@@ -168,7 +200,12 @@ const enrollInCourse = async (req, res) => {
 
     if (existing) {
       return res.status(409).json({
-        message: "You are already enrolled in this course"
+        code: "ALREADY_REQUESTED",
+        message:
+          existing.status === "pending"
+            ? "You already have a pending request for this course"
+            : "You are already approved for this course",
+        status: existing.status
       });
     }
 
@@ -178,17 +215,21 @@ const enrollInCourse = async (req, res) => {
     );
 
     return res.status(201).json({
-      message: "Course enrollment successful",
-      enrollmentId
+      message: "Enrollment request submitted successfully",
+      enrollmentId,
+      status: "pending"
     });
+
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(409).json({
-        message: "You are already enrolled in this course"
+        code: "ALREADY_REQUESTED",
+        message:
+          "You already have an active request for this course"
       });
     }
 
-    console.error("Error enrolling in course:", error);
+    console.error("Error submitting enrollment request:", error);
 
     return res.status(500).json({
       message: "Internal server error"
@@ -196,15 +237,28 @@ const enrollInCourse = async (req, res) => {
   }
 };
 
-// Student: get own enrolled courses
+// =====================================================
+// STUDENT: Get own enrollment requests
+// GET /api/enrollments/my
+// =====================================================
+
 const getMyEnrollments = async (req, res) => {
   try {
-    const enrollments = await Enrollment.getByStudent(req.user.id);
+    const studentId = Number(req.user?.id);
+
+    if (!Number.isSafeInteger(studentId) || studentId <= 0) {
+      return res.status(401).json({
+        message: "Unable to identify the logged-in student"
+      });
+    }
+
+    const enrollments = await Enrollment.getByStudent(studentId);
 
     return res.status(200).json({
-      message: "Enrollments retrieved successfully",
+      message: "Enrollment requests retrieved successfully",
       enrollments
     });
+
   } catch (error) {
     console.error("Error getting student enrollments:", error);
 
@@ -214,7 +268,52 @@ const getMyEnrollments = async (req, res) => {
   }
 };
 
-// Admin: get students enrolled in a specific course
+// =====================================================
+// STUDENT: Cancel pending request
+// DELETE /api/enrollments/my/:id
+// =====================================================
+
+const cancelMyEnrollment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const studentId = Number(req.user?.id);
+
+    if (!/^[1-9]\d*$/.test(id)) {
+      return res.status(400).json({
+        message: "Invalid enrollment ID"
+      });
+    }
+
+    const result = await Enrollment.cancelPending(
+      studentId,
+      Number(id)
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message:
+          "Pending enrollment request not found. Only pending requests can be cancelled."
+      });
+    }
+
+    return res.status(200).json({
+      message: "Enrollment request cancelled successfully"
+    });
+
+  } catch (error) {
+    console.error("Error cancelling enrollment:", error);
+
+    return res.status(500).json({
+      message: "Internal server error"
+    });
+  }
+};
+
+// =====================================================
+// ADMIN: Get students in a specific course
+// GET /api/enrollments/course/:courseId
+// =====================================================
+
 const getCourseEnrollments = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -242,6 +341,7 @@ const getCourseEnrollments = async (req, res) => {
       course,
       enrollments
     });
+
   } catch (error) {
     console.error("Error getting course enrollments:", error);
 
@@ -251,7 +351,11 @@ const getCourseEnrollments = async (req, res) => {
   }
 };
 
-// Admin: CR-008 server-side listing
+// =====================================================
+// ADMIN: Get all enrollments
+// GET /api/enrollments?status=pending
+// =====================================================
+
 const getAllEnrollments = async (req, res) => {
   let options;
 
@@ -276,6 +380,7 @@ const getAllEnrollments = async (req, res) => {
         totalPages: Math.ceil(total / options.limit)
       }
     });
+
   } catch (error) {
     console.error("Error getting all enrollments:", error);
 
@@ -285,7 +390,80 @@ const getAllEnrollments = async (req, res) => {
   }
 };
 
-// Admin: delete enrollment
+// =====================================================
+// ADMIN: Approve or reject enrollment
+// PATCH /api/enrollments/:id/status
+// =====================================================
+
+const updateEnrollmentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+
+    const adminId = Number(req.user?.id);
+
+    if (!/^[1-9]\d*$/.test(id)) {
+      return res.status(400).json({
+        message: "Invalid enrollment ID"
+      });
+    }
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({
+        message: "Status must be approved or rejected"
+      });
+    }
+
+    if (
+      status === "rejected" &&
+      (typeof reason !== "string" || !reason.trim())
+    ) {
+      return res.status(400).json({
+        message: "A rejection reason is required"
+      });
+    }
+
+    if (status === "rejected" && reason.trim().length > 1000) {
+      return res.status(400).json({
+        message: "Rejection reason must not exceed 1000 characters"
+      });
+    }
+
+    const result = await Enrollment.updateStatus(
+      Number(id),
+      status,
+      adminId,
+      status === "rejected" ? reason.trim() : null
+    );
+
+    return res.status(200).json({
+      message:
+        status === "approved"
+          ? "Enrollment approved successfully"
+          : "Enrollment rejected successfully",
+      enrollment: result
+    });
+
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message
+      });
+    }
+
+    console.error("Error updating enrollment status:", error);
+
+    return res.status(500).json({
+      message: "Internal server error"
+    });
+  }
+};
+
+// =====================================================
+// ADMIN: Delete enrollment
+// DELETE /api/enrollments/:id
+// =====================================================
+
 const deleteEnrollment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -307,6 +485,7 @@ const deleteEnrollment = async (req, res) => {
     return res.status(200).json({
       message: "Enrollment deleted successfully"
     });
+
   } catch (error) {
     console.error("Error deleting enrollment:", error);
 
@@ -319,7 +498,9 @@ const deleteEnrollment = async (req, res) => {
 module.exports = {
   enrollInCourse,
   getMyEnrollments,
+  cancelMyEnrollment,
   getCourseEnrollments,
   getAllEnrollments,
+  updateEnrollmentStatus,
   deleteEnrollment
 };

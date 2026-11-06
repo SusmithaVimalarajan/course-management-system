@@ -146,6 +146,7 @@ VALUES
 
 -- =====================================================
 -- Seed Enrollments
+-- Existing sample enrollments are approved.
 -- =====================================================
 
 -- User IDs:
@@ -166,18 +167,18 @@ VALUES
 
 
 INSERT INTO enrollments
-(student_id, course_id)
+(student_id, course_id, status)
 VALUES
 
 -- Kamal
-(2, 1),
-(2, 2),
-(2, 6),
+(2, 1, 'approved'),
+(2, 2, 'approved'),
+(2, 6, 'approved'),
 
 -- Nimal
-(3, 3),
-(3, 4),
+(3, 3, 'approved'),
+(3, 4, 'approved'),
 
 -- Saman
-(4, 2),
-(4, 7);
+(4, 2, 'approved'),
+(4, 7, 'approved');

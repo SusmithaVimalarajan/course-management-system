@@ -1,15 +1,16 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import {
   FaBook,
   FaChartBar,
   FaSearch,
-  FaUsers,
+  FaUsers
 } from "react-icons/fa";
 
 import api from "../services/api";
 import { getUser } from "../services/auth";
+
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -17,12 +18,14 @@ const EMPTY_REPORT = {
   totalCourses: 0,
   totalStudents: 0,
   totalEnrollments: 0,
+  pendingEnrollments: 0,
+  rejectedEnrollments: 0,
   studentsWithEnrollments: 0,
   enrollmentsLast30Days: 0,
   coursesWithoutEnrollments: 0,
   enrollmentsByCategory: [],
   topCourses: [],
-  recentEnrollments: [],
+  recentEnrollments: []
 };
 
 function AdminDashboard() {
@@ -45,19 +48,17 @@ function AdminDashboard() {
           setReport({
             ...EMPTY_REPORT,
             ...data,
-            enrollmentsByCategory: Array.isArray(
-              data.enrollmentsByCategory
-            )
-              ? data.enrollmentsByCategory
-              : [],
+            enrollmentsByCategory:
+              Array.isArray(data.enrollmentsByCategory)
+                ? data.enrollmentsByCategory
+                : [],
             topCourses: Array.isArray(data.topCourses)
               ? data.topCourses
               : [],
-            recentEnrollments: Array.isArray(
-              data.recentEnrollments
-            )
-              ? data.recentEnrollments
-              : [],
+            recentEnrollments:
+              Array.isArray(data.recentEnrollments)
+                ? data.recentEnrollments
+                : []
           });
 
           setError("");
@@ -66,13 +67,11 @@ function AdminDashboard() {
         if (isMounted) {
           setError(
             err.response?.data?.message ||
-              "Failed to load reporting data. Please try again later."
+            "Failed to load reporting data."
           );
         }
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
 
@@ -82,6 +81,14 @@ function AdminDashboard() {
       isMounted = false;
     };
   }, []);
+
+  const formatNumber = (value) => {
+    const number = Number(value);
+
+    return Number.isFinite(number)
+      ? number.toLocaleString()
+      : "0";
+  };
 
   const formatDate = (value) => {
     if (!value) return "-";
@@ -93,18 +100,10 @@ function AdminDashboard() {
       : date.toLocaleDateString();
   };
 
-  const formatNumber = (value) => {
-    const number = Number(value);
-
-    return Number.isFinite(number)
-      ? number.toLocaleString()
-      : "0";
-  };
-
   const categoryMaximum = Math.max(
     1,
-    ...report.enrollmentsByCategory.map((item) =>
-      Number(item.enrollmentCount) || 0
+    ...report.enrollmentsByCategory.map(
+      (item) => Number(item.enrollmentCount) || 0
     )
   );
 
@@ -118,8 +117,7 @@ function AdminDashboard() {
             <h1>Admin Dashboard</h1>
 
             <p className="page-subtitle">
-              Welcome back,{" "}
-              {user?.full_name || user?.username}.
+              Welcome back, {user?.full_name || user?.username}.
               {" "}Here is an overview of the system.
             </p>
           </div>
@@ -160,7 +158,29 @@ function AdminDashboard() {
               {loading ? "..." : formatNumber(report.totalEnrollments)}
             </span>
             <span className="dashboard-card-label">
-              Total Enrollments
+              Approved Enrollments
+            </span>
+          </div>
+
+          <div className="dashboard-card cr011-pending-card">
+            <span className="dashboard-card-value">
+              {loading ? "..." : formatNumber(report.pendingEnrollments)}
+            </span>
+            <span className="dashboard-card-label">
+              Pending Requests
+            </span>
+
+            <Link to="/admin/enrollments?status=pending">
+              Review requests
+            </Link>
+          </div>
+
+          <div className="dashboard-card">
+            <span className="dashboard-card-value">
+              {loading ? "..." : formatNumber(report.rejectedEnrollments)}
+            </span>
+            <span className="dashboard-card-label">
+              Rejected Requests
             </span>
           </div>
 
@@ -171,7 +191,7 @@ function AdminDashboard() {
                 : formatNumber(report.studentsWithEnrollments)}
             </span>
             <span className="dashboard-card-label">
-              Students with Enrollments
+              Students with Approved Enrollments
             </span>
           </div>
 
@@ -182,7 +202,7 @@ function AdminDashboard() {
                 : formatNumber(report.enrollmentsLast30Days)}
             </span>
             <span className="dashboard-card-label">
-              Enrollments (Last 30 Days)
+              Approved Enrollments (Last 30 Days)
             </span>
           </div>
 
@@ -193,29 +213,25 @@ function AdminDashboard() {
                 : formatNumber(report.coursesWithoutEnrollments)}
             </span>
             <span className="dashboard-card-label">
-              Courses without Enrollments
+              Courses without Approved Enrollments
             </span>
           </div>
         </div>
 
-        {/* Enrollments by category */}
+        {/* Category report */}
         <section className="section-card">
           <div className="section-card-header">
-            <h2>Enrollments by Category</h2>
+            <h2>Approved Enrollments by Category</h2>
           </div>
 
           {loading ? (
             <p className="loading">Loading category report...</p>
           ) : report.enrollmentsByCategory.length === 0 ? (
-            <p className="empty">
-              No course categories are available.
-            </p>
+            <p className="empty">No course categories are available.</p>
           ) : (
             <div className="cr009-category-list">
               {report.enrollmentsByCategory.map((item) => {
-                const count =
-                  Number(item.enrollmentCount) || 0;
-
+                const count = Number(item.enrollmentCount) || 0;
                 const percentage =
                   (count / categoryMaximum) * 100;
 
@@ -232,7 +248,7 @@ function AdminDashboard() {
                     <div
                       className="cr009-bar-track"
                       role="img"
-                      aria-label={`${item.category}: ${count} enrollments`}
+                      aria-label={`${item.category}: ${count} approved enrollments`}
                     >
                       <div
                         className="cr009-bar-fill"
@@ -246,17 +262,17 @@ function AdminDashboard() {
           )}
         </section>
 
-        {/* Top five courses */}
+        {/* Top courses */}
         <section className="section-card">
           <div className="section-card-header">
-            <h2>Top Five Courses by Enrollment</h2>
+            <h2>Top Five Courses by Approved Enrollment</h2>
           </div>
 
           {loading ? (
             <p className="loading">Loading top courses...</p>
           ) : report.topCourses.length === 0 ? (
             <p className="empty">
-              No course enrollments are available yet.
+              No approved course enrollments are available yet.
             </p>
           ) : (
             <div className="table-wrapper">
@@ -266,7 +282,7 @@ function AdminDashboard() {
                     <th>Rank</th>
                     <th>Course</th>
                     <th>Category</th>
-                    <th>Enrollments</th>
+                    <th>Approved Enrollments</th>
                   </tr>
                 </thead>
 
@@ -287,10 +303,10 @@ function AdminDashboard() {
           )}
         </section>
 
-        {/* Recent enrollments */}
+        {/* Recent enrollment requests */}
         <section className="section-card">
           <div className="section-card-header">
-            <h2>Recent Enrollments</h2>
+            <h2>Recent Enrollment Requests</h2>
 
             <Link
               to="/admin/enrollments"
@@ -301,10 +317,10 @@ function AdminDashboard() {
           </div>
 
           {loading ? (
-            <p className="loading">Loading recent enrollments...</p>
+            <p className="loading">Loading recent requests...</p>
           ) : report.recentEnrollments.length === 0 ? (
             <p className="empty">
-              No enrollments have been made yet.
+              No enrollment requests have been made yet.
             </p>
           ) : (
             <div className="table-wrapper">
@@ -314,25 +330,25 @@ function AdminDashboard() {
                     <th>Student</th>
                     <th>Username</th>
                     <th>Course</th>
-                    <th>Category</th>
-                    <th>Level</th>
-                    <th>Enrolled On</th>
+                    <th>Status</th>
+                    <th>Requested On</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {report.recentEnrollments.map((enrollment) => (
-                    <tr key={enrollment.id}>
-                      <td>{enrollment.full_name || "-"}</td>
-                      <td>{enrollment.username || "-"}</td>
-                      <td>{enrollment.title || "-"}</td>
-                      <td>{enrollment.category || "-"}</td>
+                  {report.recentEnrollments.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.full_name || "-"}</td>
+                      <td>{item.username || "-"}</td>
+                      <td>{item.title || "-"}</td>
                       <td>
-                        <span className="tag tag-level">
-                          {enrollment.level || "-"}
+                        <span
+                          className={`cr011-status cr011-status-${item.status}`}
+                        >
+                          {item.status?.toUpperCase()}
                         </span>
                       </td>
-                      <td>{formatDate(enrollment.enrolled_at)}</td>
+                      <td>{formatDate(item.enrolled_at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -359,13 +375,13 @@ function AdminDashboard() {
             </Link>
 
             <Link
-              to="/admin/enrollments"
+              to="/admin/enrollments?status=pending"
               className="quick-action"
             >
               <span className="quick-action-icon">
                 <FaUsers />
               </span>
-              <span>View and remove enrollments</span>
+              <span>Review pending enrollment requests</span>
             </Link>
 
             <Link to="/courses" className="quick-action">

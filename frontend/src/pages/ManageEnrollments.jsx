@@ -1,6 +1,10 @@
-
 import { useCallback, useEffect, useState } from "react";
-import { FaTrash } from "react-icons/fa";
+
+import {
+  FaTrash,
+  FaCheck,
+  FaTimes
+} from "react-icons/fa";
 
 import api from "../services/api";
 import Navbar from "../components/Navbar";
@@ -11,6 +15,7 @@ const INITIAL_FILTERS = {
   courseId: "",
   from: "",
   to: "",
+  status: "",
   sort: "date",
   order: "desc",
   limit: "20"
@@ -23,6 +28,7 @@ function ManageEnrollments() {
   const [page, setPage] = useState(1);
 
   const [enrollments, setEnrollments] = useState([]);
+
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -35,7 +41,11 @@ function ManageEnrollments() {
   const [success, setSuccess] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Load courses for the dropdown.
+  const [processingId, setProcessingId] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  // Load courses.
   useEffect(() => {
     let active = true;
 
@@ -58,7 +68,7 @@ function ManageEnrollments() {
     };
   }, []);
 
-  // Debounce student search.
+  // Debounce search.
   useEffect(() => {
     const timer = setTimeout(() => {
       const value = searchInput.trim();
@@ -77,20 +87,25 @@ function ManageEnrollments() {
 
   const updateFilter = (name, value) => {
     setSuccess("");
+
     setFilters((previous) => ({
       ...previous,
       [name]: value
     }));
+
     setPage(1);
   };
 
-  // Retrieve only the requested page from the backend.
+  // Load enrollment records.
   const loadEnrollments = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const params = { ...filters, page };
+      const params = {
+        ...filters,
+        page
+      };
 
       Object.keys(params).forEach((key) => {
         if (params[key] === "") {
@@ -100,7 +115,10 @@ function ManageEnrollments() {
 
       params.limit = Number(filters.limit);
 
-      const response = await api.get("/enrollments", { params });
+      const response = await api.get("/enrollments", {
+        params
+      });
+
       const records = response.data.enrollments || [];
       const meta = response.data.pagination;
 
@@ -108,25 +126,22 @@ function ManageEnrollments() {
         throw new Error("Pagination metadata is missing.");
       }
 
-      // Correct the page if deletion emptied it.
       if (page > 1 && records.length === 0) {
-        if (meta.total === 0) {
-          setPage(1);
-        } else {
-          const lastValidPage = Math.ceil(
-            meta.total / Number(filters.limit)
-          );
+        const lastValidPage = Math.max(
+          1,
+          Math.ceil(meta.total / Number(filters.limit))
+        );
 
-          setPage(Math.min(page - 1, lastValidPage));
-        }
-
+        setPage(Math.min(page - 1, lastValidPage));
         return;
       }
 
       setEnrollments(records);
       setPagination(meta);
+
     } catch (err) {
       setEnrollments([]);
+
       setError(
         err.response?.data?.message ||
         err.message ||
@@ -141,12 +156,93 @@ function ManageEnrollments() {
     loadEnrollments();
   }, [loadEnrollments]);
 
-  const handleDelete = async (enrollment) => {
-    const student =
-      enrollment.full_name || enrollment.username || "this student";
-
+  // Approve request.
+  const handleApprove = async (enrollment) => {
     const confirmed = window.confirm(
-      `Remove ${student} from "${enrollment.title}"?`
+      `Approve ${enrollment.full_name}'s request for "${enrollment.title}"?`
+    );
+
+    if (!confirmed) return;
+
+    setError("");
+    setSuccess("");
+    setProcessingId(enrollment.id);
+
+    try {
+      const response = await api.patch(
+        `/enrollments/${enrollment.id}/status`,
+        {
+          status: "approved"
+        }
+      );
+
+      setSuccess(
+        response.data.message || "Enrollment approved successfully"
+      );
+
+      setReloadKey((previous) => previous + 1);
+
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        "Failed to approve enrollment"
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Open rejection form.
+  const openRejectForm = (enrollment) => {
+    setRejectingId(enrollment.id);
+    setRejectionReason("");
+    setError("");
+    setSuccess("");
+  };
+
+  // Reject request.
+  const handleReject = async (enrollment) => {
+    if (!rejectionReason.trim()) {
+      setError("Please enter a rejection reason.");
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setProcessingId(enrollment.id);
+
+    try {
+      const response = await api.patch(
+        `/enrollments/${enrollment.id}/status`,
+        {
+          status: "rejected",
+          reason: rejectionReason.trim()
+        }
+      );
+
+      setSuccess(
+        response.data.message || "Enrollment rejected successfully"
+      );
+
+      setRejectingId(null);
+      setRejectionReason("");
+
+      setReloadKey((previous) => previous + 1);
+
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        "Failed to reject enrollment"
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Existing admin delete.
+  const handleDelete = async (enrollment) => {
+    const confirmed = window.confirm(
+      `Permanently delete ${enrollment.full_name}'s record for "${enrollment.title}"?`
     );
 
     if (!confirmed) return;
@@ -159,8 +255,12 @@ function ManageEnrollments() {
         `/enrollments/${enrollment.id}`
       );
 
-      setSuccess(response.data.message);
+      setSuccess(
+        response.data.message || "Enrollment deleted successfully"
+      );
+
       setReloadKey((previous) => previous + 1);
+
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -176,7 +276,14 @@ function ManageEnrollments() {
 
     return Number.isNaN(date.getTime())
       ? "-"
-      : date.toLocaleDateString();
+      : date.toLocaleString();
+  };
+
+  const getStatusClass = (status) => {
+    if (status === "approved") return "cr011-status-approved";
+    if (status === "rejected") return "cr011-status-rejected";
+
+    return "cr011-status-pending";
   };
 
   const total = pagination.total;
@@ -195,18 +302,24 @@ function ManageEnrollments() {
         <div className="page-header">
           <div>
             <h1>Manage Enrollments</h1>
+
             <p className="page-subtitle">
-              Search, filter, sort and manage student enrollments.
+              Review, approve, reject and manage student enrollment requests.
             </p>
           </div>
         </div>
 
+        {success && <p className="success">{success}</p>}
+        {error && <p className="error">{error}</p>}
+
+        {/* Filters */}
         <section className="section-card cr008-filters">
           <div className="cr008-filter-grid">
             <div className="form-group">
               <label htmlFor="enrollmentSearch">
                 Search student
               </label>
+
               <input
                 id="enrollmentSearch"
                 className="input"
@@ -221,6 +334,7 @@ function ManageEnrollments() {
 
             <div className="form-group">
               <label htmlFor="courseFilter">Course</label>
+
               <select
                 id="courseFilter"
                 className="input"
@@ -230,6 +344,7 @@ function ManageEnrollments() {
                 }
               >
                 <option value="">All courses</option>
+
                 {courses.map((course) => (
                   <option key={course.id} value={course.id}>
                     {course.title}
@@ -239,7 +354,26 @@ function ManageEnrollments() {
             </div>
 
             <div className="form-group">
+              <label htmlFor="statusFilter">Status</label>
+
+              <select
+                id="statusFilter"
+                className="input"
+                value={filters.status}
+                onChange={(event) =>
+                  updateFilter("status", event.target.value)
+                }
+              >
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+
+            <div className="form-group">
               <label htmlFor="enrollmentFrom">From date</label>
+
               <input
                 id="enrollmentFrom"
                 className="input"
@@ -254,6 +388,7 @@ function ManageEnrollments() {
 
             <div className="form-group">
               <label htmlFor="enrollmentTo">To date</label>
+
               <input
                 id="enrollmentTo"
                 className="input"
@@ -268,6 +403,7 @@ function ManageEnrollments() {
 
             <div className="form-group">
               <label htmlFor="enrollmentSort">Sort by</label>
+
               <select
                 id="enrollmentSort"
                 className="input"
@@ -283,7 +419,8 @@ function ManageEnrollments() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="enrollmentOrder">Sort order</label>
+              <label htmlFor="enrollmentOrder">Order</label>
+
               <select
                 id="enrollmentOrder"
                 className="input"
@@ -299,6 +436,7 @@ function ManageEnrollments() {
 
             <div className="form-group">
               <label htmlFor="enrollmentLimit">Records per page</label>
+
               <select
                 id="enrollmentLimit"
                 className="input"
@@ -313,47 +451,35 @@ function ManageEnrollments() {
                 <option value="100">100</option>
               </select>
             </div>
-
-            <div className="form-group">
-              <label>Reset filters</label>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  setSearchInput("");
-                  setFilters(INITIAL_FILTERS);
-                  setPage(1);
-                  setSuccess("");
-                }}
-              >
-                Clear filters
-              </button>
-            </div>
           </div>
+
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => {
+              setFilters(INITIAL_FILTERS);
+              setSearchInput("");
+              setPage(1);
+            }}
+          >
+            Clear Filters
+          </button>
         </section>
 
-        {success && <p className="success">{success}</p>}
-        {error && <p className="error">{error}</p>}
-
+        {/* Enrollment table */}
         <section className="section-card">
           <div className="section-card-header">
-            <h2>All Enrollments</h2>
-            <p className="cr008-total">
-              Total matching records: {total}
-            </p>
+            <h2>Enrollment Requests</h2>
+            <span>{total} records</span>
           </div>
 
-          {loading && (
+          {loading ? (
             <p className="loading">Loading enrollments...</p>
-          )}
-
-          {!loading && !error && enrollments.length === 0 && (
+          ) : enrollments.length === 0 ? (
             <p className="empty">
-              No enrollments match your search or filters.
+              No enrollment records found.
             </p>
-          )}
-
-          {!loading && enrollments.length > 0 && (
+          ) : (
             <div className="table-wrapper">
               <table className="table">
                 <thead>
@@ -362,96 +488,181 @@ function ManageEnrollments() {
                     <th>Username</th>
                     <th>Course</th>
                     <th>Category</th>
-                    <th>Level</th>
-                    <th>Enrolled On</th>
-                    <th className="table-actions-column">Actions</th>
+                    <th>Requested On</th>
+                    <th>Status</th>
+                    <th>Decision</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {enrollments.map((enrollment) => (
-                    <tr key={enrollment.id}>
-                      <td>{enrollment.full_name}</td>
-                      <td>{enrollment.username}</td>
-                      <td>{enrollment.title}</td>
-                      <td>{enrollment.category}</td>
-                      <td>
-                        <span className="tag tag-level">
-                          {enrollment.level}
-                        </span>
-                      </td>
-                      <td>{formatDate(enrollment.enrolled_at)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-small btn-danger"
-                          onClick={() => handleDelete(enrollment)}
-                        >
-                          <FaTrash /> Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {enrollments.map((enrollment) => {
+                    const isProcessing =
+                      processingId === enrollment.id;
+
+                    return (
+                      <tr key={enrollment.id}>
+                        <td>{enrollment.full_name || "-"}</td>
+                        <td>{enrollment.username || "-"}</td>
+                        <td>{enrollment.title || "-"}</td>
+                        <td>{enrollment.category || "-"}</td>
+                        <td>{formatDate(enrollment.enrolled_at)}</td>
+
+                        <td>
+                          <span
+                            className={`cr011-status ${getStatusClass(
+                              enrollment.status
+                            )}`}
+                          >
+                            {enrollment.status.toUpperCase()}
+                          </span>
+                        </td>
+
+                        <td>
+                          {enrollment.reviewed_at
+                            ? formatDate(enrollment.reviewed_at)
+                            : "-"}
+
+                          {enrollment.decision_note && (
+                            <p className="cr011-table-note">
+                              {enrollment.decision_note}
+                            </p>
+                          )}
+                        </td>
+
+                        <td>
+                          <div className="cr011-admin-actions">
+                            {enrollment.status === "pending" && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  onClick={() =>
+                                    handleApprove(enrollment)
+                                  }
+                                  disabled={isProcessing}
+                                >
+                                  <FaCheck />
+                                  Approve
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() =>
+                                    openRejectForm(enrollment)
+                                  }
+                                  disabled={isProcessing}
+                                >
+                                  <FaTimes />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm"
+                              onClick={() =>
+                                handleDelete(enrollment)
+                              }
+                              disabled={isProcessing}
+                              title="Delete enrollment"
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+
+                          {rejectingId === enrollment.id && (
+                            <div className="cr011-reject-form">
+                              <label
+                                htmlFor={`reason-${enrollment.id}`}
+                              >
+                                Rejection reason
+                              </label>
+
+                              <textarea
+                                id={`reason-${enrollment.id}`}
+                                className="input"
+                                rows="3"
+                                maxLength="1000"
+                                value={rejectionReason}
+                                onChange={(event) =>
+                                  setRejectionReason(event.target.value)
+                                }
+                                placeholder="Enter the reason for rejection"
+                              />
+
+                              <div className="cr011-reject-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() =>
+                                    handleReject(enrollment)
+                                  }
+                                  disabled={
+                                    isProcessing ||
+                                    !rejectionReason.trim()
+                                  }
+                                >
+                                  Confirm Rejection
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => {
+                                    setRejectingId(null);
+                                    setRejectionReason("");
+                                    setError("");
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
 
-          <div className="cr008-pagination">
-            <p className="cr008-range" aria-live="polite">
-              Showing {start}–{end} of {total}
-            </p>
+          {/* Pagination */}
+          {!loading && total > 0 && (
+            <div className="pagination">
+              <p>
+                Showing {start}–{end} of {total}
+              </p>
 
-            <p className="cr008-page-info">
-              Page {page} of {totalPages}
-            </p>
+              <div className="pagination-actions">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => current - 1)}
+                >
+                  Previous
+                </button>
 
-            <div className="cr008-pagination-buttons">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={loading || page <= 1 || totalPages === 0}
-                onClick={() => setPage(1)}
-              >
-                First
-              </button>
+                <span>
+                  Page {page} of {totalPages}
+                </span>
 
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={loading || page <= 1 || totalPages === 0}
-                onClick={() => setPage((current) => current - 1)}
-              >
-                Previous
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={
-                  loading ||
-                  totalPages === 0 ||
-                  page >= totalPages
-                }
-                onClick={() => setPage((current) => current + 1)}
-              >
-                Next
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={
-                  loading ||
-                  totalPages === 0 ||
-                  page >= totalPages
-                }
-                onClick={() => setPage(totalPages)}
-              >
-                Last
-              </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  Next
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </section>
       </main>
 
